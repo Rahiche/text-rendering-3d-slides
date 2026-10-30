@@ -2,7 +2,18 @@
 
 The talk *Inside Flutter's Text Pipeline*, told in **Name City** (名前の街): a 3D city built with Flutter, where every stop of the talk is a place. A word travels from code points to pixels, Japanese scrolls unroll on a rooftop and take your typing, and Dash drives a delivery in for the thank-you.
 
-**Open it in the browser (WebAssembly):** https://rahiche.github.io/text-rendering-3d-slides/
+> **Use the native macOS app.** The city is a full 3D scene, and only the macOS build runs it smoothly. The web version is much slower and laggy in the browser: treat it as a quick preview, not a way to watch or present the talk.
+
+## Running it on macOS
+
+```sh
+cd booth3d
+flutter run -d macos --release --dart-define=NAME_CITY_TALK=1
+```
+
+Run it in release mode: a debug build is slow too.
+
+To build the app itself, run `bash booth3d/tool/build_slides_app.sh [folder]`. It builds *Inside Flutter's Text Pipeline.app*, which opens straight into the talk.
 
 ## Presenting
 
@@ -15,19 +26,15 @@ The talk *Inside Flutter's Text Pipeline*, told in **Name City** (名前の街):
 | B or . | blank the screen (any key brings it back) |
 | Esc | leave the talk (F5 brings it back) |
 
-The page opens straight into the talk. To open at a section or a stop, add `?talk=05` or `?talk=06/text%20on%20path` to the address.
+To open at a section or a stop, launch it with `NAME_CITY_TALK=05` or `NAME_CITY_TALK="06/text on path"`. Pass it as a `--dart-define`, or set it with `open -a "Inside Flutter's Text Pipeline" --env NAME_CITY_TALK=05`.
 
-F6 plays the talk as a presentation, telling itself beat by beat. The presenter's recorded voice isn't in this repo, so on the web it plays silent.
+F6 plays the talk as a presentation, telling itself beat by beat. The presenter's recorded voice isn't in this repo, so it plays silent.
 
-## Running it
+## Web preview (slow)
 
-```sh
-cd booth3d
-flutter run -d macos --dart-define=NAME_CITY_TALK=1
-```
+https://rahiche.github.io/text-rendering-3d-slides/ is the same app built as WebAssembly. Expect a low frame rate and stutter. It opens into the talk; add `?talk=05` or `?talk=06/text%20on%20path` to open at a section or a stop.
 
-- **Mac app:** `bash booth3d/tool/build_slides_app.sh [folder]` builds *Inside Flutter's Text Pipeline.app*, opening into the talk.
-- **The web page:** `bash tool/deploy_pages.sh` builds it as WebAssembly and pushes it to `gh-pages`.
+`bash tool/deploy_pages.sh` rebuilds it and pushes it to `gh-pages`.
 
 ## What's here
 
