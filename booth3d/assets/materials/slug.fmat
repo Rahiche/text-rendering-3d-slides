@@ -1,0 +1,169 @@
+// Slug glyph coverage in the 3D pass (slug_word.dart): text drawn from its
+// outlines on the GPU, sharp at any distance or angle.
+//
+// Port of packages/slug/shaders/slug.frag (Flutter's FragmentProgram), itself
+// a port of the reference pixel shader for the Slug algorithm:
+//   Eric Lengyel, "GPU-Centered Font Rendering Directly from Glyph Outlines",
+//   Journal of Computer Graphics Techniques (JCGT) 6(2), 2017.
+//   Reference shaders: https://github.com/EricLengyel/Slug
+//   Slug shader code Copyright 2017 by Eric Lengyel, MIT License (see
+//   packages/slug/LICENSE). The Slug patent (US 10,373,352) was dedicated to
+//   the public domain on 17 March 2026.
+//
+// What differs from packages/slug's: each glyph is a quad in the scene, its
+// glyph-grid coordinates in UV0 (interpolated perspective-correct), its
+// first texel in UV1.x, its bands in the vertex colour (horizontal count,
+// vertical count, horizontal scale, vertical scale); pixels per grid unit
+// come from screen-space derivatives (fwidth), and texels are fetched, not
+// sampled.
+
+material {
+  name: "SlugText",
+  shading_model: unlit,
+  blending: alpha,
+  culling: none,
+  parameters: [
+    { type: sampler2d, name: curve_data },
+    { type: vec4, name: ink, default: [1.0, 1.0, 1.0, 1.0] },
+    { type: vec2, name: data_size, default: [1024.0, 1.0] },
+  ],
+}
+
+fragment {
+  #define SLUG_MAX_CURVES 64
+
+  vec3 SlugTexel(float i) {
+    float w = material_params.data_size.x;
+    float row = floor((i + 0.5) / w);
+    float col = i - row * w;
+    return floor(texelFetch(curve_data, ivec2(int(col), int(row)), 0).rgb * 255.0 + 0.5);
+  }
+
+  // 12-bit x, 12-bit y packed in r, g, b.
+  vec2 SlugPointAt(float i) {
+    vec3 c = SlugTexel(i);
+    float gh = floor(c.g / 16.0);
+    return vec2(c.r * 16.0 + gh, (c.g - gh * 16.0) * 256.0 + c.b);
+  }
+
+  // Roots t of a t^2 - 2b t + c = 0, mapped through the other coordinate:
+  // (o(t1), o(t2)) where o(t) = (oa t - 2 ob) t + oc. Imaginary roots become
+  // a double root at the extremum t = b / a, so they cancel out.
+  vec2 SlugSolve(float a, float b, float c, float oa, float ob, float oc) {
+    float t1;
+    float t2;
+    float disc = b * b - a * c;
+    if (abs(a) < 0.25) {
+      t1 = c * 0.5 / b;
+      t2 = t1;
+    } else if (disc <= 0.0) {
+      t1 = b / a;
+      t2 = t1;
+    } else {
+      float d = sqrt(disc);
+      if (b >= 0.0) {
+        t1 = c / (b + d);
+        t2 = (b + d) / a;
+      } else {
+        t1 = (b - d) / a;
+        t2 = c / (b - d);
+      }
+    }
+    return vec2((oa * t1 - ob * 2.0) * t1 + oc, (oa * t2 - ob * 2.0) * t2 + oc);
+  }
+
+  // Root eligibility from the signs of the three control points (the
+  // reference's 0x2E74 lookup).
+  bool SlugEligible1(bool n1, bool n2, bool n3) {
+    return (!n1 && (n2 || n3)) || (n1 && !n2 && n3);
+  }
+
+  bool SlugEligible2(bool n1, bool n2, bool n3) {
+    return (n1 && !(n2 && n3)) || (!n1 && n2 && !n3);
+  }
+
+  void Surface(inout MaterialInputs material) {
+    vec2 rc = GetUV0();
+    float base = GetUV1().x;
+    vec4 band = GetVertexColor();
+    // Glyph-grid units per device pixel, as fwidth(rc) gives them.
+    vec2 gridPerPixel = vec2(abs(dFdx(rc.x)) + abs(dFdy(rc.x)), abs(dFdx(rc.y)) + abs(dFdy(rc.y)));
+    vec2 ppu = 1.0 / max(gridPerPixel, vec2(1e-6));
+
+    float by = clamp(floor(rc.y * band.z), 0.0, band.x - 1.0);
+    float bx = clamp(floor(rc.x * band.w), 0.0, band.y - 1.0);
+    vec3 hh = SlugTexel(base + by);
+    vec3 vh = SlugTexel(base + band.x + bx);
+    float hStart = base + hh.g * 256.0 + hh.b;
+    float vStart = base + vh.g * 256.0 + vh.b;
+
+    // Horizontal ray (+x): curves sorted by max x, descending.
+    float xcov = 0.0;
+    float xwgt = 0.0;
+    for (int i = 0; i < SLUG_MAX_CURVES; i++) {
+      if (float(i) >= hh.r) break;
+      float t = hStart + 3.0 * float(i);
+      vec2 q1 = SlugPointAt(t);
+      vec2 q2 = SlugPointAt(t + 1.0);
+      vec2 q3 = SlugPointAt(t + 2.0);
+      vec2 p1 = q1 - rc;
+      if (max(max(p1.x, q2.x - rc.x), q3.x - rc.x) * ppu.x < -0.5) break;
+      bool n1 = p1.y < 0.0;
+      bool n2 = q2.y - rc.y < 0.0;
+      bool n3 = q3.y - rc.y < 0.0;
+      bool e1 = SlugEligible1(n1, n2, n3);
+      bool e2 = SlugEligible2(n1, n2, n3);
+      if (e1 || e2) {
+        vec2 a = q1 - q2 * 2.0 + q3;
+        vec2 b = q1 - q2;
+        vec2 r = SlugSolve(a.y, b.y, p1.y, a.x, b.x, p1.x) * ppu.x;
+        if (e1) {
+          xcov += clamp(r.x + 0.5, 0.0, 1.0);
+          xwgt = max(xwgt, clamp(1.0 - abs(r.x) * 2.0, 0.0, 1.0));
+        }
+        if (e2) {
+          xcov -= clamp(r.y + 0.5, 0.0, 1.0);
+          xwgt = max(xwgt, clamp(1.0 - abs(r.y) * 2.0, 0.0, 1.0));
+        }
+      }
+    }
+
+    // Vertical ray (+y): curves sorted by max y, descending.
+    float ycov = 0.0;
+    float ywgt = 0.0;
+    for (int i = 0; i < SLUG_MAX_CURVES; i++) {
+      if (float(i) >= vh.r) break;
+      float t = vStart + 3.0 * float(i);
+      vec2 q1 = SlugPointAt(t);
+      vec2 q2 = SlugPointAt(t + 1.0);
+      vec2 q3 = SlugPointAt(t + 2.0);
+      vec2 p1 = q1 - rc;
+      if (max(max(p1.y, q2.y - rc.y), q3.y - rc.y) * ppu.y < -0.5) break;
+      bool n1 = p1.x < 0.0;
+      bool n2 = q2.x - rc.x < 0.0;
+      bool n3 = q3.x - rc.x < 0.0;
+      bool e1 = SlugEligible1(n1, n2, n3);
+      bool e2 = SlugEligible2(n1, n2, n3);
+      if (e1 || e2) {
+        vec2 a = q1 - q2 * 2.0 + q3;
+        vec2 b = q1 - q2;
+        vec2 r = SlugSolve(a.x, b.x, p1.x, a.y, b.y, p1.y) * ppu.y;
+        if (e1) {
+          ycov -= clamp(r.x + 0.5, 0.0, 1.0);
+          ywgt = max(ywgt, clamp(1.0 - abs(r.x) * 2.0, 0.0, 1.0));
+        }
+        if (e2) {
+          ycov += clamp(r.y + 0.5, 0.0, 1.0);
+          ywgt = max(ywgt, clamp(1.0 - abs(r.y) * 2.0, 0.0, 1.0));
+        }
+      }
+    }
+
+    // Both rays, weighted by how close their nearest root is to the pixel
+    // centre (the reference's CalcCoverage, nonzero fill).
+    float coverage = max(abs(xcov * xwgt + ycov * ywgt) / max(xwgt + ywgt, 1.0 / 65536.0), min(abs(xcov), abs(ycov)));
+    coverage = clamp(coverage, 0.0, 1.0);
+    material.base_color = vec4(material_params.ink.rgb, material_params.ink.a * coverage);
+    PrepareMaterial(material);
+  }
+}

@@ -1,0 +1,49 @@
+// The meadow round the scrolls' line (lib/lab/scroll_lab.dart): clumps of
+// blades, instanced, bent in the wind here. Each blade leans downwind by the
+// square of its height (a cantilever), more in the gusts that roll across
+// the field, with a quicker flutter of its own; its tip comes down as it
+// bends, so it keeps its length. UV0.y is up the blade (root dark, tip
+// light); the vertex colour, each blade's own tint. (scroll.fmat and
+// scroll_ink.fmat, beside it, are the scrolls'.)
+
+material {
+  name: "MeadowGrass",
+  shading_model: lit,
+  culling: none,
+  parameters: [
+    // xy: the way the wind blows (world xz, unit); z: how hard; w: time.
+    { type: vec4, name: wind, default: [1.0, 0.0, 1.0, 0.0] },
+    { type: vec4, name: root_color, default: [0.035, 0.06, 0.015, 1.0] },
+    { type: vec4, name: tip_color, default: [0.30, 0.36, 0.11, 1.0] },
+  ],
+}
+
+vertex {
+  void Vertex(inout VertexInputs vertex) {
+    vec2 p = vertex.world_position.xz;
+    vec2 dir = material_params.wind.xy;
+    float t = material_params.wind.w;
+    // Gusts rolling downwind, a crosswise swell, a blade's own flutter.
+    float gust = 0.65 + 0.35 * sin(dot(p, dir) * 0.45 - t * 1.6) + 0.2 * sin(dot(p, vec2(-dir.y, dir.x)) * 0.9 + t * 0.6);
+    float flutter = 0.18 * sin(dot(p, vec2(3.1, 2.3)) + t * 5.3) + 0.1 * sin(dot(p, vec2(-1.7, 4.1)) + t * 7.9);
+    float hy = max(vertex.world_position.y, 0.0);
+    float lean = material_params.wind.z * (0.55 * gust + flutter) * hy * hy;
+    vertex.world_position.xz += dir * lean;
+    vertex.world_position.y -= 0.5 * lean * lean / max(hy, 0.05);
+  }
+}
+
+fragment {
+  void Surface(inout MaterialInputs material) {
+    vec3 n = normalize(GetWorldNormal());
+    // (Lit as the side that's seen, a little towards the sky: thin blades.)
+    material.normal = normalize((gl_FrontFacing ? n : -n) + vec3(0.0, 0.6, 0.0));
+    float h = GetUV0().y;
+    vec3 c = mix(material_params.root_color.rgb, material_params.tip_color.rgb, smoothstep(0.0, 1.0, h));
+    material.base_color = vec4(c * GetVertexColor().rgb, 1.0);
+    material.roughness = 0.7;
+    material.specular = 0.4;
+    material.occlusion = mix(0.45, 1.0, h);
+    PrepareMaterial(material);
+  }
+}

@@ -1,0 +1,169 @@
+// A hanging scroll (掛け軸) on a washing line, in the wind (lib/lab/
+// scroll_lab.dart): its paper unrolled on the GPU.
+//
+// The mesh is a flat grid of the paper's own coordinates: position.x across
+// it (metres from its middle line), position.y down it (metres from the top
+// rod); position.z is unused. Vertex() works out where that point of the
+// paper is now: hanging from the top rod down to the [roll].x unrolled so
+// far, the rest wound round the bottom roller as a spiral (a layer of the
+// paper's thickness a turn, the face inside, as a scroll is rolled), all of
+// it swinging on the line, billowing and twisting a little in the wind.
+// The normal comes from the same function a step either way, so the light
+// follows every curl. (Positions, not UVs, carry the coordinates: the
+// shadow pass sees positions only.) ScrollShape in scroll_lab.dart is the
+// same sum on the CPU, for the roller's ends and the pegs. (grass.fmat,
+// beside it, sways the meadow round them.)
+
+material {
+  name: "HangingScroll",
+  shading_model: physical,
+  culling: none,
+  parameters: [
+    // The mounted work (front), sRGB.
+    { type: sampler2d, name: face },
+    // xyz: where it hangs on the line (world); w: its turn (yaw).
+    { type: vec4, name: origin, default: [0.0, 2.0, 0.0, 0.0] },
+    // x: paper unrolled (m); y: its whole length; z: the roller's radius;
+    // w: the paper's thickness (a turn's worth on the roll).
+    { type: vec4, name: roll, default: [1.5, 1.5, 0.011, 0.0018] },
+    // x: the swing on the line (rad, + the foot forward); y: the billow
+    // (m); z: the twist at the foot (rad); w: the ripple (m).
+    { type: vec4, name: sway, default: [0.0, 0.0, 0.0, 0.0] },
+    // x: time (s); y: the ripple's wavenumber (rad/m); z: its speed
+    // (rad/s); w: the paper's width (m).
+    { type: vec4, name: wave, default: [0.0, 9.0, 3.0, 0.5] },
+    // x: the top rod's drop below the line (m).
+    { type: vec4, name: hang, default: [0.03, 0.0, 0.0, 0.0] },
+    // The back of the mounting (linear).
+    { type: vec4, name: back_color, default: [0.55, 0.57, 0.52, 1.0] },
+    // Selected text: its box on the face, a column's worth each (UV0: u0,
+    // v0, u1, v1; none when u1 <= u0), and its tint; the caret (v, u0, u1,
+    // how much it shows); what the input method's composing (a line beside
+    // it: u, v0, v1, shown).
+    { type: vec4, name: selection, default: [0.0, 0.0, 0.0, 0.0] },
+    { type: vec4, name: selection2, default: [0.0, 0.0, 0.0, 0.0] },
+    { type: vec4, name: selection_color, default: [0.45, 0.68, 1.0, 1.0] },
+    { type: vec4, name: caret, default: [0.0, 0.0, 0.0, 0.0] },
+    { type: vec4, name: composing, default: [0.0, 0.0, 0.0, 0.0] },
+  ],
+}
+
+vertex {
+  const float kPi = 3.14159265;
+
+  // Point (x across, sig down the paper) in the scroll's own frame: x along
+  // the line, y up, z out of the face; the line through the origin.
+  vec3 ScrollPoint(float x, float sig) {
+    float s = max(material_params.roll.x, 1e-4);
+    float len = material_params.roll.y;
+    float rod = material_params.roll.z;
+    float h = max(material_params.roll.w, 1e-5);
+    float t = material_params.wave.x;
+    float w = material_params.wave.w;
+    // Down the hanging part (the roller's at its foot): pinned at both
+    // rods, bulging between them; turning a little about the upright, more
+    // the further down.
+    float d = min(sig, s);
+    float pin = sin(kPi * d / s);
+    pin *= pin;
+    float tau = material_params.sway.z * d / s;
+    vec3 across = vec3(cos(tau), 0.0, sin(tau));
+    vec3 front = vec3(-sin(tau), 0.0, cos(tau));
+    float bulge = pin * (material_params.sway.y +
+        material_params.sway.w * sin(material_params.wave.y * d - material_params.wave.z * t + 2.6 * x / w));
+    vec3 p = vec3(0.0, -material_params.hang.x - d, 0.0) + across * x + front * bulge;
+    if (sig > s) {
+      // Wound round the roller, in front of the hanging part, the paper
+      // going down its back, under, up its front: a spiral whose radius
+      // falls a thickness a turn. a Phi^2 + rod Phi = what's left.
+      float a = h / (4.0 * kPi);
+      float phi0 = (-rod + sqrt(rod * rod + 4.0 * a * (len - s))) / (2.0 * a);
+      float outer = rod + h * phi0 / (2.0 * kPi);
+      // This point's turn: outer phi - a phi^2 = sig - s.
+      float phi = (outer - sqrt(max(outer * outer - 4.0 * a * (sig - s), 0.0))) / (2.0 * a);
+      float r = outer - h * phi / (2.0 * kPi);
+      p += front * (outer - r * cos(phi)) - vec3(0.0, r * sin(phi), 0.0);
+    }
+    // Swung on the line (the foot forward for +).
+    float cs = cos(material_params.sway.x), sn = sin(material_params.sway.x);
+    return vec3(p.x, p.y * cs + p.z * sn, -p.y * sn + p.z * cs);
+  }
+
+  vec3 ScrollWorld(float x, float sig) {
+    vec3 p = ScrollPoint(x, sig);
+    float cy = cos(material_params.origin.w), sy = sin(material_params.origin.w);
+    return material_params.origin.xyz + vec3(cy * p.x + sy * p.z, p.y, -sy * p.x + cy * p.z);
+  }
+
+  void Vertex(inout VertexInputs vertex) {
+    float x = vertex.position.x, sig = vertex.position.y;
+    vec3 p = ScrollWorld(x, sig);
+    // (The tangents a step along each way: the face's normal, out of it.)
+    const float e = 0.0015;
+    vec3 tx = ScrollWorld(x + e, sig) - p;
+    vec3 ts = ScrollWorld(x, sig + e) - p;
+    vertex.world_position = p;
+    vertex.world_normal = normalize(cross(ts, tx));
+    vertex.world_tangent = vec4(normalize(tx), 1.0);
+  }
+}
+
+fragment {
+  vec3 ScrollLinear(vec3 c) {
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+  }
+
+  // The mounting's back: backing paper, laid (a fine line across it every
+  // 4 mm, faded out where a pixel covers several) and a little mottled; in
+  // the paper's own coordinates, so it turns with the roll.
+  vec3 ScrollBack(vec2 uv) {
+    float sig = uv.y * material_params.roll.y;
+    float laid = 0.5 + 0.5 * cos(sig * 6.2831853 / 0.004);
+    laid = mix(laid, 0.5, smoothstep(0.25, 0.8, fwidth(sig) / 0.004));
+    float mottle = 0.5 + 0.5 * sin(uv.x * 23.0 + 2.0 * sin(sig * 7.0)) * sin(sig * 11.0 + uv.x * 5.0);
+    return material_params.back_color.rgb * (0.88 + 0.08 * laid + 0.07 * mottle);
+  }
+
+  // How much of the box (u0, v0, u1, v1) covers uv, its edges softened by
+  // [px] (a screen pixel in UV).
+  float ScrollBox(vec2 uv, vec4 box, vec2 px) {
+    vec2 a = smoothstep(box.xy - px, box.xy + px, uv);
+    vec2 b = smoothstep(box.zw - px, box.zw + px, uv);
+    return a.x * a.y * (1.0 - b.x) * (1.0 - b.y);
+  }
+
+  void Surface(inout MaterialInputs material) {
+    // The face (the mounted work) one side, the mounting's plain back the
+    // other; lit as whichever side is seen.
+    bool front = gl_FrontFacing;
+    vec3 n = normalize(GetWorldNormal());
+    material.normal = front ? n : -n;
+    vec3 c = front ? ScrollLinear(texture(face, GetUV0()).rgb) : ScrollBack(GetUV0());
+    if (front) {
+      // The selection behind the ink (the paper tinted, the ink as dark),
+      // and the caret across the column, two pixels thick, in the accent
+      // blue (not to be taken for a stroke of ink): on the paper, so they
+      // curl and sway with it.
+      vec2 uv = GetUV0(), px = fwidth(uv);
+      float picked = max(ScrollBox(uv, material_params.selection, px), ScrollBox(uv, material_params.selection2, px));
+      c *= mix(vec3(1.0), material_params.selection_color.rgb, picked);
+      vec4 k = material_params.caret;
+      float bar = ScrollBox(uv, vec4(k.y, k.x - 1.2 * px.y, k.z, k.x + 1.2 * px.y), px);
+      c = mix(c, vec3(0.0, 0.16, 0.85), bar * k.w);
+      // The composing line, down the right of the column (where a vertical
+      // input method underlines).
+      vec4 m = material_params.composing;
+      float line = ScrollBox(uv, vec4(m.x - px.x, m.y, m.x + px.x, m.z), px);
+      c = mix(c, vec3(0.03, 0.03, 0.035), line * m.w);
+    }
+    material.base_color = vec4(c, 1.0);
+    material.roughness = 0.78;
+    material.specular = 0.35;
+    // Thin paper and silk: the light through it, backlit.
+    material.diffuse_transmission = 0.3;
+    material.diffuse_transmission_color = c;
+    material.sheen_color = vec3(0.06);
+    material.sheen_roughness = 0.5;
+    PrepareMaterial(material);
+  }
+}

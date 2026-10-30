@@ -1,0 +1,788 @@
+import 'dart:math' as math;
+import 'dart:ui' show Color, FontVariation, FontWeight, Locale, Paint, PaintingStyle, Rect;
+
+import 'package:flutter/painting.dart' show Alignment, Canvas, LinearGradient, Offset, TextAlign, TextDirection, TextPainter, TextSelection, TextSpan, TextStyle;
+import 'package:flutter_scene/scene.dart';
+import 'package:text_slides/deck/theme.dart';
+import 'package:vector_math/vector_math.dart' as vm;
+
+import 'kit.dart';
+import 'shot.dart';
+import 'site_fx.dart';
+import 'site_geo.dart';
+import 'shapes.dart' show bevelBox;
+import 'site_plan.dart';
+import 'devices.dart' show signFrame;
+
+/// One of the alley's stalls: the rule its script breaks (the talk's
+/// "Every script breaks a rule"), on its sign, the script, its colour (the
+/// slides'), and what the caption says about it.
+class AlleyRule {
+  const AlleyRule(this.en, this.script, this.color, this.note);
+  final String en, script;
+  final Color color;
+  final String note;
+}
+
+const alleyRules = [
+  AlleyRule('Right-to-left', 'URDU', BP.coral, 'اردو — written from the right'),
+  AlleyRule('Joining', 'ARABIC', BP.amber, 'ب ي ت → بيت — each letter takes a shape for its neighbours'),
+  AlleyRule('Reordering', 'DEVANAGARI', BP.violet, 'क + ि → कि — typed after, drawn before'),
+  AlleyRule('Stacking', 'THAI', BP.pink, 'ป + ั + ่ → ปั่ — marks stack on the letter'),
+  AlleyRule('Composition', 'HANGUL', Color(0xFF7FE0FF), 'ㅎ + ㅏ + ㄴ → 한 — one syllable, one block'),
+  AlleyRule('Vertical', 'JAPANESE', Color(0xFF9FF0D6), 'top to bottom — not built into Flutter'),
+];
+
+/// Where the alley is: a lane off ICU City's square (talk 02's town; it
+/// was the park's long path, and keeps that layout, moved by [o]); three
+/// stalls on each side, facing the lane (local −z is a stall's front).
+abstract final class AlleyLayout {
+  /// Where its layout's origin is in the world: the lane's middle line is
+  /// x = o.x.
+  static final o = vm.Vector3(-240, 0, -14.2);
+  static const rowX = 5.7;
+  static const rowZ = [29.5, 34.5, 39.5];
+
+  /// The gate over the lane at the alley's start.
+  static const gateZ = 26.2, gateX = 3.0;
+
+  /// A point of its layout (as it was laid out in the park) in the world.
+  static vm.Vector3 place(double x, double y, double z) => vm.Vector3(o.x + x, o.y + y, o.z + z);
+
+  /// Stall [i]'s front middle, on the ground, and the turn that faces it
+  /// to the lane.
+  static vm.Vector3 at(int i) => place(i < 3 ? -rowX : rowX, 0, rowZ[i % 3]);
+  static double yaw(int i) => i < 3 ? -math.pi / 2 : math.pi / 2;
+
+  /// Stall [i]'s frame (local to world).
+  static vm.Matrix4 frame(int i) => trs(at(i), rotY: yaw(i));
+
+  /// A point in stall [i]'s frame, in the world.
+  static vm.Vector3 toWorld(int i, vm.Vector3 local) {
+    final c = math.cos(yaw(i)), s = math.sin(yaw(i)), o = at(i);
+    return vm.Vector3(o.x + c * local.x + s * local.z, o.y + local.y, o.z - s * local.x + c * local.z);
+  }
+
+  /// Where stall [i]'s keeper stands (behind the counter), and which way
+  /// they face (heading: local +x towards the path, as the crowd's).
+  static vm.Vector3 keeper(int i) => toWorld(i, vm.Vector3(0.15, 0, 0.72));
+  static double keeperHeading(int i) => i < 3 ? 0 : math.pi;
+
+  /// The counter's top, where the letters stand (stall frame).
+  static const stageY = 0.98, stageZ = -0.1;
+}
+
+/// A text piece on a counter: its solid and its node.
+class _Piece {
+  _Piece(this.solid, this.node);
+  final PlacedSolid solid;
+  final Node node;
+
+  double get advance => solid.advance;
+  double get width => solid.mesh.width;
+  double get height => solid.mesh.height;
+}
+
+/// One stall's letters and where they go.
+class _Demo {
+  final pieces = <_Piece>[];
+
+  /// Pen positions (x, stage frame) worked out from the real layout.
+  final x = <double>[];
+  Node? frame;
+}
+
+class _Visit {
+  _Visit(this.stall, this.a, this.e, this.gate);
+  final int stall;
+  final double a, e;
+
+  /// Starting on the gate (the alley's first visit in a build).
+  final bool gate;
+
+  /// When the stall's loop starts (so the camera sees it from the start).
+  double get start => a + (gate ? 2.2 : 0.3);
+}
+
+/// 文字横丁 · Script Alley: festival stalls (屋台) along the park's long path,
+/// one for each rule from the talk's "Every script breaks a rule" —
+/// right-to-left, joining, reordering, stacking, composition, vertical.
+/// Each stall shows its rule with big letters on its counter, over and
+/// over: they come, the rule happens to them (they slide, hop, drop, are
+/// pressed together…), the result holds, they go. Lanterns light up at
+/// dusk; a keeper minds each stall. Now and then during a build the camera
+/// visits one (the gate first), from the start of its loop; the stalls
+/// take turns from one name to the next.
+class ScriptAlley {
+  ScriptAlley(this.scene, this.fx);
+
+  final Scene scene;
+  final Fx3D fx;
+
+  /// When the camera's here during this build (for the other planners).
+  final camWindows = <(double, double)>[];
+  final _visits = <_Visit>[];
+
+  final _demos = List.generate(6, (_) => _Demo());
+  final _glyphMats = <PhysicallyBasedMaterial>[];
+  late final PhysicallyBasedMaterial _lanterns;
+  bool _ready = false;
+
+  /// A stall's loop (seconds), and when in it the letters go.
+  static const _period = 8.4, _out = 7.7;
+
+  /// The stalls' letters and signs per script, for the web's font warm-up
+  /// (the world fetches every fallback font it draws with at once).
+  static List<(String, TextStyle)> get fontRuns => [
+    ('اردو ا ر د و ← بيت ب ي ت क ि कि ป น ั ่ ปั่น', _style(null)),
+    ('ㅎ ㅏ ㄴ 한', _style('ko')),
+    ('縦書き', _style('ja')),
+  ];
+
+  Future<void> init() async {
+    _lanterns = pbr(lin(const Color(0xFFFF5A3C)), roughness: 0.6, emissive: lin(const Color(0xFFFF7A45)), emissiveStrength: 0.6);
+    _buildStalls();
+    await Future.wait([_buildSigns(), _buildLetters(), _buildBoards()]);
+    _ready = true;
+  }
+
+  // ── The talk's display boards ─────────────────────────────────────────────
+
+  /// Behind each stall's letters, a board that rises out of the counter
+  /// while a talk shows the stall: a solid ground the glyphs read against
+  /// (the stall's own wall is its colour, as the letters are), and the
+  /// keeper out of sight behind it. (The vertical stall's column sinks into
+  /// the counter as its board comes up: its letters go straight onto the
+  /// board.) Its size, and how far back it stands (stall frame; the letters
+  /// stand at [AlleyLayout.stageZ]).
+  static const boardW = 1.9, boardH = 1.35, boardZ = 0.2;
+
+  /// With the board up, the letters step up onto a baseline drawn on it
+  /// (this high over the counter): what hangs below the line — the dots
+  /// under ب and ي — no longer sinks into the counter. (Not the vertical
+  /// stall's: its letters hang in a column, top to bottom.)
+  static const baseline = 0.2;
+  final _boards = <Node>[], _roots = <Node>[];
+  final _boardUp = List.filled(6, 0.0);
+  double _lastT = 0;
+
+  Future<void> _buildBoards() async {
+    for (var i = 0; i < 6; i++) {
+      final c = alleyRules[i].color;
+      final tex = await paintedTexture(760, 540, (canvas, s) {
+        final r = Offset.zero & s;
+        canvas
+          ..drawRect(
+            r,
+            Paint()
+              ..shader = const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF17283F), Color(0xFF0B1626)],
+              ).createShader(r),
+          )
+          ..drawRect(
+            r.deflate(8),
+            Paint()
+              ..color = c.withValues(alpha: 0.7)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 6,
+          );
+        if (i != 5) {
+          // The baseline the letters sit on.
+          final y = s.height * (1 - baseline / boardH);
+          canvas.drawLine(
+            Offset(s.width * 0.06, y),
+            Offset(s.width * 0.94, y),
+            Paint()
+              ..color = c.withValues(alpha: 0.55)
+              ..strokeWidth = 3,
+          );
+        }
+      });
+      final mat = PhysicallyBasedMaterial()
+        ..baseColorTexture = tex
+        ..metallicFactor = 0
+        ..roughnessFactor = 0.85
+        ..emissiveTexture = tex
+        ..emissiveFactor = vm.Vector4(1, 1, 1, 1)
+        ..emissiveStrength = 0.35;
+      final n = Node(name: 'alley board', mesh: Mesh(boardGeometry(boardW, boardH, thick: 0.04), mat))
+        ..castsShadows = false
+        ..visible = false
+        ..add(signFrame(boardW, boardH));
+      scene.add(n);
+      _boards.add(n);
+    }
+  }
+
+  /// How far stall [i]'s letters stand over its counter now.
+  double _lift(int i) => i == 5 ? 0 : baseline * eio(_boardUp[i]);
+
+  /// The boards up (the one a talk shows) or down, [dt] seconds on.
+  void _poseBoards(double dt) {
+    for (var i = 0; i < _boards.length; i++) {
+      final up = _played?.$1 == i;
+      _boardUp[i] = up ? math.min(1.0, _boardUp[i] + dt / 0.55) : math.max(0.0, _boardUp[i] - dt / 0.45);
+      final e = eio(_boardUp[i]);
+      final n = _boards[i]..visible = e > 0.002;
+      if (n.visible) {
+        n.localTransform = AlleyLayout.frame(i) * vm.Matrix4.translation(vm.Vector3(0, AlleyLayout.stageY + boardH / 2 - boardH * (1 - e), boardZ));
+      }
+      if (i == 5) {
+        // The vertical stall's column down into the counter as the board
+        // comes up behind it (and back up after).
+        _column.visible = e < 0.998;
+        if (_column.visible) _column.localTransform = AlleyLayout.frame(5) * vm.Matrix4.translation(vm.Vector3(0, AlleyLayout.stageY + _columnH / 2 - _columnH * e, AlleyLayout.stageZ + 0.2));
+      }
+      if (i < _roots.length) {
+        _roots[i].localTransform = AlleyLayout.frame(i) * vm.Matrix4.translation(vm.Vector3(0, AlleyLayout.stageY + _lift(i), AlleyLayout.stageZ));
+      }
+    }
+  }
+
+  // ── The stalls ────────────────────────────────────────────────────────────
+
+  /// Where a stall's two lanterns hang (stall frame: ± across, in front).
+  static const _lanternX = 1.16, _lanternZ = -0.6;
+
+  /// The vertical stall's column on its counter, the board its letters
+  /// drop into (its own node: see [_poseBoards]); its height.
+  late final Node _column;
+  static const _columnH = 1.36;
+
+  /// The roof's ridge (stall frame: height, across the stall over the
+  /// counter's back), and how steeply its planks fall to the front.
+  static const _ridgeY = 3.45, _ridgeZ = 0.35, _pitch = 0.3164;
+
+  void _buildStalls() {
+    final batch = Batch();
+    final timber = pbr(rgb(1, 1, 1), roughness: 0.8);
+    final stain = v4(hex3(0x3E2C20)), groove = v4(hex3(0x271C15)), plank = v4(hex3(0xA9784A)), beam = v4(hex3(0x6E4A2E)), dark = v4(hex3(0x2E2A2A));
+    final vermilion = v4(hex3(0xC8442F)), cord = v4(hex3(0x1C1F26));
+    final wheel = CylinderGeometry(bottomRadius: 0.4, topRadius: 0.4, height: 0.07, radialSegments: 20);
+    final hub = CylinderGeometry(bottomRadius: 0.09, topRadius: 0.09, height: 0.1, radialSegments: 10);
+    for (var i = 0; i < 6; i++) {
+      final m = AlleyLayout.frame(i);
+      void box(double w, double h, double d, double x, double y, double z, vm.Vector4 col, {double rotX = 0}) =>
+          batch.add(timber, painted(bevelBox(w, h, d).transformed(m * trs(vm.Vector3(x, y, z), rotX: rotX)), col));
+      // A yatai (屋台): its counter a timber cart on two wheels, the plank
+      // on top where the letters stand.
+      box(2.5, 0.86, 0.66, 0, 0.52, 0, stain);
+      for (final y in [0.3, 0.55, 0.8]) {
+        box(2.51, 0.012, 0.012, 0, y, -0.335, groove);
+      }
+      box(2.72, 0.07, 0.86, 0, 0.95, -0.03, plank);
+      for (final x in [-1.31, 1.31]) {
+        batch.add(timber, part(wheel, m * trs(vm.Vector3(x, 0.4, 0.05), rotZ: math.pi / 2), beam));
+        batch.add(timber, part(hub, m * trs(vm.Vector3(x * 1.02, 0.4, 0.05), rotZ: math.pi / 2), stain));
+      }
+      // Posts up to the roof, the back wall (the stall's colour, dark), low
+      // sides.
+      for (final x in [-1.25, 1.25]) {
+        box(0.1, 3.2, 0.1, x, 1.6, -0.3, beam);
+        box(0.1, 3.2, 0.1, x, 1.6, 1.02, beam);
+        box(0.04, 0.9, 1.3, x * 0.976, 0.45, 0.35, stain);
+      }
+      box(2.4, 1.6, 0.05, 0, 1.75, 1.06, v4(lin3(alleyRules[i].color, 0.32)));
+      // The roof: planks falling from the ridge to the front and the back,
+      // seams across them; the beam the noren hangs from.
+      final run = math.cos(_pitch), drop = math.sin(_pitch);
+      for (final (side, len) in [(-1.0, 1.19), (1.0, 0.95)]) {
+        final along = side * len / 2;
+        box(2.98, 0.045, len, 0, _ridgeY - len / 2 * drop, _ridgeZ + along * run, plank, rotX: side * _pitch);
+        for (final f in [0.25, 0.5, 0.75]) {
+          final at = side * len * f;
+          box(2.99, 0.012, 0.05, 0, _ridgeY - len * f * drop + 0.026, _ridgeZ + at * run, groove, rotX: side * _pitch);
+        }
+      }
+      box(3.0, 0.12, 0.12, 0, _ridgeY + 0.02, _ridgeZ, beam);
+      box(2.8, 0.1, 0.1, 0, 3.0, -0.66, beam);
+      // The red lanterns' cords and caps (the lit paper is its own mesh), at
+      // the front corners (clear of the talk's display board, seen head on),
+      // hung from the eaves.
+      for (final x in [-_lanternX, _lanternX]) {
+        box(0.015, 0.7, 0.015, x, 2.65, _lanternZ, cord);
+        box(0.22, 0.05, 0.22, x, 2.28, _lanternZ, cord);
+        box(0.22, 0.05, 0.22, x, 1.74, _lanternZ, cord);
+      }
+      // A bench along the front for the customers.
+      box(2.2, 0.06, 0.32, 0, 0.46, -0.85, plank);
+      for (final x in [-0.95, 0.95]) {
+        box(0.07, 0.43, 0.26, x, 0.215, -0.85, beam);
+      }
+    }
+    _column = Node(name: 'alley column', mesh: Mesh(merged([painted(bevelBox(0.52, _columnH, 0.05), dark)]), timber))
+      ..castsShadows = false
+      ..lightChannelMask = 0x01
+      ..localTransform = AlleyLayout.frame(5) * vm.Matrix4.translation(vm.Vector3(0, AlleyLayout.stageY + _columnH / 2, AlleyLayout.stageZ + 0.2));
+    scene.add(_column);
+    // The gate: two vermilion posts and a beam over the path.
+    for (final x in [-AlleyLayout.gateX, AlleyLayout.gateX]) {
+      batch.add(timber, part(CuboidGeometry(vm.Vector3(0.18, 3.7, 0.18)), trs(AlleyLayout.place(x, 1.85, AlleyLayout.gateZ)), vermilion));
+    }
+    batch.add(timber, part(CuboidGeometry(vm.Vector3(6.7, 0.2, 0.24)), trs(AlleyLayout.place(0, 3.62, AlleyLayout.gateZ)), vermilion));
+    // Strings of lanterns across the path between the stalls.
+    final paper = SphereGeometry(radius: 0.2, segments: 14, rings: 9);
+    final small = CylinderGeometry(bottomRadius: 0.11, topRadius: 0.11, height: 0.24, radialSegments: 10);
+    for (var i = 0; i < 6; i++) {
+      for (final x in [-_lanternX, _lanternX]) {
+        batch.add(_lanterns, part(paper, AlleyLayout.frame(i) * trs(vm.Vector3(x, 2.01, _lanternZ), s: vm.Vector3(1, 1.3, 1)), v4(lin3(const Color(0xFFFF9A9A)))));
+      }
+    }
+    for (final z in [32.0, 37.0]) {
+      batch.add(timber, part(CuboidGeometry(vm.Vector3(2 * AlleyLayout.rowX - 2.2, 0.02, 0.02)), trs(AlleyLayout.place(0, 3.0, z)), cord));
+      for (var k = 0; k < 7; k++) {
+        final x = -2.7 + 0.9 * k;
+        batch.add(
+          _lanterns,
+          part(
+            small,
+            trs(AlleyLayout.place(x, 2.8 - 0.12 * math.cos((k - 3) / 3 * math.pi / 2), z)),
+            v4(lin3(k.isEven ? const Color(0xFFFFFFFF) : const Color(0xFFFFE3B0))),
+          ),
+        );
+      }
+    }
+    batch.build(scene, 'script alley', castsShadows: false, lightChannelMask: 0x01);
+  }
+
+  /// The stalls' signs (their rule, the script) and the gate's: SCRIPT
+  /// ALLEY.
+  Future<void> _buildSigns() async {
+    Future<void> sign(String title, String sub, Color bg, Color ink, double w, double h, vm.Matrix4 at, {bool noren = false}) async {
+      final tex = await paintedTexture(640, (640 * h / w).round(), (c, s) {
+        c.drawRect(Offset.zero & s, Paint()..color = bg);
+        c.drawRect(
+          (Offset.zero & s).deflate(8),
+          Paint()
+            ..color = ink.withValues(alpha: 0.85)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 5,
+        );
+        _text(c, title, Rect.fromLTWH(0, s.height * 0.1, s.width, s.height * 0.52), s.height * 0.38, ink, null);
+        _text(c, sub, Rect.fromLTWH(0, s.height * 0.62, s.width, s.height * 0.3), s.height * 0.2, ink, null);
+      });
+      final mat = PhysicallyBasedMaterial()
+        ..baseColorTexture = tex
+        ..metallicFactor = 0
+        ..roughnessFactor = 0.7
+        ..emissiveTexture = tex
+        ..emissiveFactor = vm.Vector4(1, 1, 1, 1)
+        ..emissiveStrength = 0.25;
+      _signMats.add(mat);
+      scene.add(Node(name: 'alley sign', mesh: Mesh(noren ? _noren(w, h) : boardGeometry(w, h, thick: 0.04), mat), localTransform: at)..castsShadows = false);
+    }
+
+    await Future.wait([
+      for (var i = 0; i < 6; i++)
+        sign(
+          alleyRules[i].en.toUpperCase(),
+          alleyRules[i].script,
+          alleyRules[i].color,
+          const Color(0xFF14203A),
+          2.3,
+          0.56,
+          AlleyLayout.frame(i) * vm.Matrix4.translation(vm.Vector3(0, 2.72, -0.69)),
+          noren: true,
+        ),
+      sign(
+        'SCRIPT ALLEY',
+        'EVERY SCRIPT BREAKS A RULE',
+        const Color(0xFFF4EBD8),
+        const Color(0xFF8E2A1E),
+        4.6,
+        0.8,
+        vm.Matrix4.translation(AlleyLayout.place(0, 3.05, AlleyLayout.gateZ - 0.14)),
+      ),
+    ]);
+  }
+
+  final _signMats = <PhysicallyBasedMaterial>[];
+
+  /// A stall's sign as its noren: four cloth panels [w]×[h] in all, slit
+  /// apart, hanging from the eaves; the sign's picture across them.
+  static MeshGeometry _noren(double w, double h) {
+    const panels = 4, gap = 0.03;
+    final pw = (w - gap * (panels - 1)) / panels;
+    final parts = <MeshData>[];
+    for (var k = 0; k < panels; k++) {
+      final x0 = -w / 2 + k * (pw + gap);
+      final d = CuboidGeometry(vm.Vector3(pw, h, 0.012)).extractMeshData().transformed(vm.Matrix4.translation(vm.Vector3(x0 + pw / 2, 0, 0)));
+      final uv = d.texCoords!, n = d.normals!, p = d.positions;
+      for (var i = 0; i < d.vertexCount; i++) {
+        if (n[i * 3 + 2] < -0.5) {
+          uv[i * 2] = p[i * 3] / w + 0.5;
+          uv[i * 2 + 1] = 0.5 - p[i * 3 + 1] / h;
+        } else {
+          uv[i * 2] = 0.5;
+          uv[i * 2 + 1] = 0.006;
+        }
+      }
+      parts.add(d);
+    }
+    return MeshGeometry.fromMeshData(MeshData.merge(parts));
+  }
+
+  void _text(Canvas c, String s, Rect box, double size, Color color, String? lang) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(
+          fontFamily: BP.display,
+          fontSize: size,
+          color: color,
+          locale: lang == null ? null : Locale(lang),
+          fontWeight: FontWeight.w800,
+          fontVariations: const [FontVariation('wght', 760)],
+        ),
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final k = tp.width > box.width * 0.92 ? box.width * 0.92 / tp.width : 1.0;
+    c
+      ..save()
+      ..translate(box.center.dx, box.center.dy)
+      ..scale(k);
+    tp.paint(c, Offset(-tp.width / 2, -tp.height / 2));
+    c.restore();
+    tp.dispose();
+  }
+
+  // ── The letters ───────────────────────────────────────────────────────────
+
+  static TextStyle _style(String? lang) => TextStyle(
+    fontFamily: BP.display,
+    fontFamilyFallback: const [BP.arabic],
+    fontSize: 160,
+    height: 1.15,
+    locale: lang == null ? null : Locale(lang),
+    fontWeight: FontWeight.w700,
+    fontVariations: const [FontVariation('wght', 700)],
+  );
+
+  /// Each stall's pieces: the letters alone, and what they make.
+  static const _texts = [
+    ['ا', 'ر', 'د', 'و', '←'],
+    ['ب', 'ي', 'ت', 'بيت'],
+    ['क', 'ि', 'कि'],
+    ['ป', 'น', 'ั', '่', 'ปั่น'],
+    ['ㅎ', 'ㅏ', 'ㄴ', '한'],
+    ['縦', '書', 'き'],
+  ];
+  static const _langs = [null, null, null, null, 'ko', 'ja'];
+
+  Future<void> _buildLetters() async {
+    const u = 0.62 / 160, uSmall = 0.34 / 160;
+    final solids = await Future.wait([
+      for (var i = 0; i < 6; i++) extrudeTextsAt([for (final s in _texts[i]) (s, _style(_langs[i]))], unitsPerPx: i == 5 ? uSmall : u, depth: 0.1),
+    ]);
+    for (var i = 0; i < 6; i++) {
+      final mat = pbr(lin(alleyRules[i].color), roughness: 0.42, emissive: lin(alleyRules[i].color), emissiveStrength: 0.12);
+      _glyphMats.add(mat);
+      final root = Node(
+        name: 'alley stall $i',
+        localTransform: AlleyLayout.frame(i) * vm.Matrix4.translation(vm.Vector3(0, AlleyLayout.stageY, AlleyLayout.stageZ)),
+      );
+      scene.add(root);
+      _roots.add(root);
+      final d = _demos[i];
+      for (final s in solids[i]) {
+        final n = Node(name: 'alley letter', mesh: Mesh(glyphGeometry(s.mesh), mat))
+          ..castsShadows = false
+          ..visible = false;
+        root.add(n);
+        d.pieces.add(_Piece(s, n));
+      }
+      if (i == 4) {
+        // The syllable's square, round where 한 stands.
+        final h = d.pieces[3];
+        final side = math.max(h.width, h.height) * 1.22, t = 0.035;
+        final frame = merged([
+          for (final (x, y, w, hh) in [(0.0, side, side + t, t), (0.0, 0.0, side + t, t), (-side / 2, side / 2, t, side), (side / 2, side / 2, t, side)])
+            part(CuboidGeometry(vm.Vector3(w, hh, 0.05)), vm.Matrix4.translation(vm.Vector3(x, y, 0.04)), v4(lin3(alleyRules[i].color))),
+        ]);
+        root.add(
+          d.frame = Node(name: 'alley block', mesh: Mesh(frame, mat))
+            ..castsShadows = false
+            ..visible = false,
+        );
+      }
+    }
+    // Where the letters stand in the words they make (the real layout).
+    _layout(0, 'اردو', 4);
+    _layout(1, 'بيت', 3);
+    _layout(3, 'ปั่น', 4);
+  }
+
+  /// Pen positions (stage x, the word centred) of the first [n] characters
+  /// of [word], as stall [i]'s pieces lay out in it.
+  void _layout(int i, String word, int n) {
+    const u = 0.62 / 160;
+    final tp = TextPainter(
+      text: TextSpan(text: word, style: _style(_langs[i])),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final half = tp.width / 2;
+    final d = _demos[i];
+    for (var k = 0; k < word.length && d.x.length < n; k++) {
+      final boxes = tp.getBoxesForSelection(TextSelection(baseOffset: k, extentOffset: k + 1));
+      d.x.add(boxes.isEmpty ? 0 : (boxes.first.left - half) * u);
+    }
+    tp.dispose();
+  }
+
+  // ── Every frame ───────────────────────────────────────────────────────────
+
+  /// Poses every stall at [t]; lanterns and letters glow after dusk.
+  void update(double t, double night) {
+    final on = smooth(0.12, 0.5, night);
+    _lanterns.emissiveStrength = 0.6 + 7 * on;
+    for (final m in _signMats) {
+      m.emissiveStrength = 0.25 + 0.6 * on;
+    }
+    if (!_ready) return;
+    for (final m in _glyphMats) {
+      m.emissiveStrength = 0.12 + 1.3 * on;
+    }
+    _poseBoards((t - _lastT).clamp(0.0, 0.1));
+    _lastT = t;
+    for (var i = 0; i < 6; i++) {
+      _pose(i, _loopAt(i, t));
+    }
+  }
+
+  /// Where stall [i] is in its loop at [t]: a talk's (from when it called
+  /// on it, held once it's done), or from a visit's start while the
+  /// camera's there, else on its own clock.
+  double _loopAt(int i, double t) {
+    if (_played case (final k, final at) when k == i) {
+      _playedU = (t - at).clamp(0.0, _done);
+      _playedT = t;
+      return _playedU;
+    }
+    for (final v in _visits) {
+      if (v.stall == i && t >= v.a - 1.0 && t < v.e + 0.5) return t - v.start;
+    }
+    return (t + _phase[i]) % _period;
+  }
+
+  /// Each stall's own clock (out of step with the others).
+  final _phase = [for (var i = 0; i < 6; i++) 1.37 * i];
+
+  /// Every stall's letters are done by now, and held until the loop's end.
+  static const _done = 7.2;
+
+  /// The stall a talk's on, and when it called on it; where it got to.
+  (int, double)? _played;
+  double _playedU = 0, _playedT = 0;
+
+  /// Plays stall [i] from the start at [at] (scene time), its outcome held
+  /// until [release]d (a talk's call, talk/).
+  void play(int i, double at) => _played = (i, at);
+
+  /// Lets the stall a talk had go on round from where it is.
+  void release() {
+    if (_played case (final k, _)) _phase[k] = _playedU - _playedT;
+    _played = null;
+  }
+
+  static double _back(double x) {
+    const c1 = 1.70158, c3 = c1 + 1;
+    final y = x - 1;
+    return 1 + c3 * y * y * y + c1 * y * y;
+  }
+
+  /// [p]'s mesh at (x, y) in the stage, scale [s]; hidden at 0.
+  static void _put(_Piece p, double x, double y, double s, {double z = 0}) {
+    p.node.visible = s > 0.002;
+    if (!p.node.visible) return;
+    p.node.place((m) => setTrs(m, x, y, z, s: s));
+  }
+
+  /// [p] with its pen at (x, baseline y).
+  static void _pen(_Piece p, double x, double y, double s) => _put(p, x + s * p.solid.ox, y + s * p.solid.oy, s);
+
+  /// [p] with its ink centred on (x, y).
+  static (double, double) _inkAt(_Piece p, double x, double y, double s) => (x, y - s * p.height / 2);
+
+  /// A puff where letters come together (stage point of stall [i]).
+  void _puff(int i, double x, double y, double age, int seed) {
+    final w = AlleyLayout.toWorld(i, vm.Vector3(x, AlleyLayout.stageY + _lift(i) + y, AlleyLayout.stageZ - 0.1));
+    fx.puff(w.x, w.y, w.z, age, 0.35, seed: seed, n: 3);
+  }
+
+  void _pose(int i, double u) {
+    final d = _demos[i], ps = d.pieces;
+    if (ps.isEmpty) return;
+    final out = 1 - seg(u, _out, _out + 0.45);
+    double pop(double at) => u < at ? 0 : _back(seg(u, at, at + 0.32)) * out;
+    switch (i) {
+      case 0:
+        // اردو (Urdu) letter by letter, from the right (none of its letters
+        // joins the next: each stands as typed); the pen's arrow going left.
+        if (d.x.length < 4) return;
+        for (var k = 0; k < 4; k++) {
+          _pen(ps[k], d.x[k], 0, pop(0.6 + 0.55 * k));
+        }
+        final right = d.x[0] + ps[0].advance, left = d.x[3];
+        final arrow = ps[4];
+        final f = eio(seg(u, 0.35, 2.55));
+        final as = 0.6 * seg(u, 0.25, 0.45) * (1 - seg(u, 2.8, 3.1)) * out;
+        _pen(arrow, lerp(right + 0.08, left - 0.12 - arrow.advance * 0.6, f), 0.66, as);
+      case 1:
+        // ب ي ت alone and apart (right to left), sliding together; then
+        // they're one word, each letter in the shape that joins it.
+        if (d.x.length < 3) return;
+        final joined = u >= 3.0;
+        final slide = eio(seg(u, 1.7, 2.9));
+        const apart = [0.62, 0.0, -0.62];
+        for (var k = 0; k < 3; k++) {
+          final x0 = apart[k] - ps[k].advance / 2;
+          _pen(ps[k], lerp(x0, d.x[k], slide), 0, joined ? 0 : pop(0.4 + 0.4 * k));
+        }
+        final word = ps[3];
+        _pen(word, -word.advance / 2, 0, joined ? _back(seg(u, 3.0, 3.35)) * out : 0);
+        _puff(i, 0, 0.2, (u - 3.0) / 0.8, 11);
+      case 2:
+        // क, then ि typed after it — which hops over to be drawn before it;
+        // then they're one cluster, कि.
+        final ka = ps[0], ii = ps[1], word = ps[2];
+        final merged = u >= 3.2;
+        _pen(ka, -0.25 - ka.advance / 2, 0, merged ? 0 : pop(0.4));
+        final hop = eio(seg(u, 1.9, 3.0));
+        final x0 = 0.5 - ii.advance / 2, x1 = -0.25 - ka.advance / 2 - ii.advance * 0.8;
+        _pen(ii, lerp(x0, x1, hop), 0.5 * math.sin(math.pi * hop), merged ? 0 : pop(1.0));
+        _pen(word, -word.advance / 2, 0, merged ? _back(seg(u, 3.2, 3.55)) * out : 0);
+        _puff(i, -0.2, 0.25, (u - 3.2) / 0.8, 12);
+      case 3:
+        // ป and น; the marks ั and ่ (each on its placeholder circle) come
+        // down onto ป, one over the other; then the cluster as the font
+        // stacks it.
+        if (d.x.length < 4) return;
+        final merged = u >= 3.3;
+        final base = ps[0], last = ps[1], word = ps[4];
+        _pen(base, d.x[0], 0, merged ? 0 : pop(0.4));
+        _pen(last, d.x[3], 0, merged ? 0 : pop(0.7));
+        double drop(double a) {
+          final f = seg(u, a, a + 0.38);
+          return f < 1 ? (1 - f * f) : 0.06 * math.sin(math.pi * seg(u, a + 0.38, a + 0.6));
+        }
+
+        _pen(ps[2], d.x[0], 0.8 * drop(1.9), merged ? 0 : pop(1.2));
+        _pen(ps[3], d.x[0], 1.15 * drop(2.5), merged ? 0 : pop(1.5));
+        _pen(word, -word.advance / 2, 0, merged ? _back(seg(u, 3.3, 3.65)) * out : 0);
+        _puff(i, -0.15, 0.35, (u - 3.3) / 0.8, 13);
+      case 4:
+        // ㅎ ㅏ ㄴ in a row; drawn into one square, smaller; then 한.
+        final h = ps[3];
+        final merged = u >= 3.2;
+        final f = eio(seg(u, 1.7, 2.9));
+        final cx = 0.0, y0 = 0.02, w = h.width, hh = h.height;
+        const row = [-0.62, 0.0, 0.62];
+        final spots = [(cx - 0.22 * w, y0 + 0.74 * hh), (cx + 0.28 * w, y0 + 0.6 * hh), (cx - 0.04 * w, y0 + 0.2 * hh)];
+        for (var k = 0; k < 3; k++) {
+          final p = ps[k];
+          final s = merged ? 0.0 : pop(0.4 + 0.3 * k) * lerp(1, 0.5, f);
+          final (ax, ay) = _inkAt(p, row[k], p.height / 2 + 0.02, s);
+          final (bx, by) = _inkAt(p, spots[k].$1, spots[k].$2, s);
+          _put(p, lerp(ax, bx, f), lerp(ay, by, f), s);
+        }
+        _put(h, cx, y0, merged ? _back(seg(u, 3.2, 3.55)) * out : 0);
+        final frame = d.frame;
+        if (frame != null) {
+          final s = (u < 1.6 ? 0 : _back(seg(u, 1.6, 1.95))) * out;
+          frame.visible = s > 0.002;
+          frame.place((m) => setTrs(m, cx, y0 - 0.1 * hh, 0, s: s));
+        }
+        _puff(i, 0, 0.3, (u - 3.2) / 0.8, 14);
+      default:
+        // 縦, 書, き dropping into the vertical board, top to bottom.
+        const slots = [1.08, 0.68, 0.28];
+        for (var k = 0; k < 3; k++) {
+          final p = ps[k];
+          final a = 0.5 + 0.6 * k;
+          final fall = seg(u, a, a + 0.42);
+          final y = slots[k] + (fall < 1 ? 1.3 * (1 - fall * fall) : 0.05 * math.sin(math.pi * seg(u, a + 0.42, a + 0.62)));
+          final s = (u < a ? 0.0 : 1.0) * out;
+          final (x, yy) = _inkAt(p, 0, y, s);
+          _put(p, x, yy, s, z: -0.03);
+        }
+    }
+  }
+
+  // ── The camera ────────────────────────────────────────────────────────────
+
+  /// Plans this build's visits: one (two in a long build), each in a
+  /// stretch the camera's free (clear of the kerning close-ups and [busyCam],
+  /// the delivery's and the works' shots), half a minute apart. The first
+  /// starts on the gate; the stalls take turns from one name to the next.
+  void planFor(BuildPlan plan, {required List<(double, double)> busyCam}) {
+    _visits.clear();
+    // (Moved out to ICU City, the talk's: no build's tours come by.)
+    if (AlleyLayout.o.length2 > 0) return;
+    camWindows.clear();
+    final busy = [
+      for (final st in plan.steps)
+        if (st != null && st.filmed) (st.a - 2.0, st.e + 1.5),
+      for (final (a, e) in busyCam) (a - 3.5, e + 3.5),
+    ];
+    final want = plan.len > 90 ? 2 : 1, end = plan.t0 + plan.len - 2.0;
+    var from = plan.t0 + 14.0;
+    for (var n = 0; n < want; n++) {
+      final gate = n == 0, len = gate ? 9.6 : 7.8;
+      var a = from;
+      for (var moved = true; moved;) {
+        moved = false;
+        for (final (x, y) in busy) {
+          if (a < y && a + len > x) {
+            a = y;
+            moved = true;
+          }
+        }
+      }
+      if (a + len > end) break;
+      _visits.add(_Visit((plan.job.serial * 2 + n) % 6, a, a + len, gate));
+      camWindows.add((a, a + len));
+      from = a + len + 30;
+    }
+  }
+
+  /// The visits, for the capture log.
+  String describe() => '\nPLAN alley ${[for (final v in _visits) '${alleyRules[v.stall].en} ${v.a.toStringAsFixed(1)}–${v.e.toStringAsFixed(1)}'].join(', ')}';
+
+  /// The stall visited from [a] (as its focus names it), or null.
+  int? stallAt(String a) {
+    for (final v in _visits) {
+      if (v.a.toStringAsFixed(1) == a) return v.stall;
+    }
+    return null;
+  }
+
+  /// The camera's request at [t] (priority 2): the gate and the stalls
+  /// beyond it for a moment, then in on the stall, pushing in slowly as its
+  /// letters do their thing.
+  void focus(List<Focus> out, double t) {
+    if (!_ready || out.any((f) => f.priority >= 2)) return;
+    for (final v in _visits) {
+      if (t < v.a || t >= v.e) continue;
+      final u = t - v.a, id = v.a.toStringAsFixed(1);
+      if (v.gate && u < 2.2) {
+        out.add(
+          Focus(
+            'alley gate $id',
+            Shot(AlleyLayout.place(0.9, 2.2, AlleyLayout.gateZ - 3.4), AlleyLayout.place(-0.3, 2.0, 35.5), fov: 52, settle: 0.8, drift: 0.6),
+            priority: 2,
+          ),
+        );
+        return;
+      }
+      final k = seg(u, v.gate ? 2.2 : 0, v.e - v.a);
+      final eye = AlleyLayout.toWorld(v.stall, vm.Vector3(0.85, 1.72, lerp(-4.4, -3.7, k)));
+      final tg = AlleyLayout.toWorld(v.stall, vm.Vector3(0.05, 1.42, -0.1));
+      out.add(Focus('alley ${v.stall} $id', Shot(eye, tg, fov: 40, settle: 1.0, drift: 0.4), priority: 2));
+      return;
+    }
+  }
+}

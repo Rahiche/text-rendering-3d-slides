@@ -1,0 +1,21 @@
+name: text_slides
+description: "What the 3D slides (booth3d/) take from the talk's 2D deck: its theme and font data, and the conference booth's name builder (lib/booth)."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  characters: any
+  dart_earcut: ^1.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

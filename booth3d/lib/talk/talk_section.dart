@@ -1,0 +1,232 @@
+import 'dart:math' as math;
+
+import 'package:vector_math/vector_math.dart' as vm;
+
+import '../world/shot.dart';
+
+/// What the talk's card says at a stop: its name, what happens there, and
+/// the facts, with the talk's own numbers. [opener]: a section's first card (its number and
+/// title, large).
+class TalkCard {
+  const TalkCard(this.title, this.lede, [this.facts = const [], this.opener = false, this.kicker = '', this.follow]);
+
+  final String title, lede;
+
+  /// A line over the title (the thanks: ありがとうございました).
+  final String kicker;
+  final List<CardFact> facts;
+  final bool opener;
+
+  /// For a stop of several beats: the rows ([FactRow.label]) to look at in
+  /// each beat, in turn (several split by '|'), lit as the scene shows
+  /// them; instead of the rows' own [FactRow.accent].
+  final List<String>? follow;
+}
+
+sealed class CardFact {
+  const CardFact();
+}
+
+/// A value with its label ([accent]: the one to look at), and an
+/// [example] under it (a | in it is a place a line may break). [at]: held
+/// back until that many seconds into the beat (as its scene reveals it,
+/// the narration saying it), then counted up and lit until the next row's
+/// out; into the stop's [beat]th beat, for a stop of several (a row a
+/// press), out from then on.
+class FactRow extends CardFact {
+  const FactRow(this.label, this.value, {this.accent = false, this.example, this.at, this.beat = 0});
+  final String label, value;
+  final bool accent;
+  final String? example;
+  final double? at;
+  final int beat;
+}
+
+/// A few samples measured several ways: the columns' names (the first is
+/// the samples'), a row a sample, the column to look at ([lit]).
+class FactTable extends CardFact {
+  const FactTable(this.columns, this.rows, {this.lit});
+  final List<String> columns;
+  final List<List<String>> rows;
+  final int? lit;
+}
+
+/// A few lines of code.
+class FactCode extends CardFact {
+  const FactCode(this.code, {this.at, this.beat = 0});
+  final String code;
+
+  /// Held back (not there at all) until that second of beat [beat], as a
+  /// row's value is.
+  final double? at;
+  final int beat;
+}
+
+/// Points on a line between two ends ([left], [right]): each a name at a
+/// value from −1 (the left end) to 1 (the right) ([accent]: the one to
+/// look at).
+class FactScale extends CardFact {
+  const FactScale(this.left, this.right, this.points);
+  final String left, right;
+  final List<(String, double, bool)> points;
+}
+
+/// A word letter by letter (or any short items), a value under each
+/// ([lit]: the one being looked at).
+class FactLetters extends CardFact {
+  const FactLetters(this.label, this.cells);
+  final String label;
+  final List<(String, String, bool)> cells;
+}
+
+/// Something in the city named where it is (a callout following the
+/// camera): where, its name; a step's number ([order]: they come up one
+/// after another) and a word after the name ([sub], dimmer).
+class TalkPin {
+  const TalkPin(this.at, this.name, {this.order, this.sub, this.side = 0, this.below = false});
+  final vm.Vector3 at;
+  final String name;
+  final int? order;
+  final String? sub;
+
+  /// Which side of its dot its name goes (−1 left, 1 right; 0: wherever
+  /// it fits, straight up first).
+  final int side;
+
+  /// Whether its name goes under its dot instead, wherever across the
+  /// screen: for a place low under the card (the names otherwise keep right
+  /// of the card's column, but there's room under it).
+  final bool below;
+}
+
+/// The presenter's slide (title_slide.dart) over a beat: none; over the
+/// whole canvas (the talk opens on it); or on the laptop's screen in the
+/// city, where the camera sees it (the camera pulling back from it), crisp
+/// over the screen until it's small.
+enum Slide { none, full, screen }
+
+/// One beat of the talk: the stop it belongs to (a stop has one or more),
+/// where the camera goes, how long it takes to get there, and how far right
+/// of the middle what it looks at sits (of the half width: the card's on the
+/// left).
+class TalkBeat {
+  const TalkBeat(
+    this.stop,
+    this.shot, {
+    this.fly = 2.2,
+    this.shift = 0.3,
+    this.pull = 1,
+    this.pins = const [],
+    this.live,
+    this.cardAt = 0,
+    this.chapter = false,
+    this.chapterFor,
+    this.questions,
+    this.slide = Slide.none,
+    this.pinsAt,
+    this.unvoiced,
+    this.page = 0,
+  });
+
+  final int stop;
+  final Shot shot;
+  final double fly, shift;
+
+  /// How far back from what it looks at the camera stands (of the shot's
+  /// own distance): room for a wide subject beside the card.
+  final double pull;
+
+  /// Where the camera is this frame, when it follows something (a scene's
+  /// own camera): instead of [shot].
+  final Shot Function()? live;
+
+  /// Named in the city while the beat's on (once the camera's there; or
+  /// from [pinsAt] seconds into it, the camera on its own way there).
+  final List<TalkPin> pins;
+  final double? pinsAt;
+
+  /// Seconds into the beat (flown to) before its card comes up.
+  final double cardAt;
+
+  /// Opens a chapter: the section's number, title and glyphs large in the
+  /// middle until the card comes up.
+  final bool chapter;
+
+  /// How long the chapter's title stays up, if not till the card comes
+  /// (the camera's way there has something to see first).
+  final double? chapterFor;
+
+  /// The questions after the talk: this many seconds into the beat (or at
+  /// the next press), the booth's own demo takes over behind the thanks
+  /// (Talk.thanks built on the plaza, the director's camera); null: none.
+  final double? questions;
+
+  /// The presenter's slide over it.
+  final Slide slide;
+
+  /// A beat with no narration yet: presentation mode holds it this many
+  /// seconds, silent (0: passes it over), and gives its clips to the beats
+  /// after (null: it has a clip, in order).
+  final double? unvoiced;
+
+  /// Which of the opening's slides its slide is (intro_slides.dart: 0, the
+  /// title).
+  final int page;
+}
+
+/// One section of the talk, told in the city: its number and title (as the
+/// deck's), its stops, the camera's beats through them, a card a stop; and
+/// what it does to the world while it's on (the journey runs the Glyph
+/// Works on its own clock, the others call on a scene to play).
+abstract class TalkSection {
+  /// '05' (empty: the title and the end).
+  String get number;
+  String get title;
+
+  /// The stops' short names, for the way along the bottom.
+  List<String> get stops;
+
+  /// Its glyphs, as the deck's divider shows them.
+  List<String> get glyphs => const [];
+  List<TalkBeat> get beats;
+  TalkCard card(int stop);
+
+  /// The talk's come to this section, or left it.
+  void enter() {}
+  void leave() {}
+
+  /// Beat [beat] is on: [cut] when it was cut to (back, a jump), not flown
+  /// to (set the world as the beat left it).
+  void arrive(int beat, {required bool cut}) {}
+
+  /// Every frame while on, before the site's update: [age] seconds into
+  /// [beat], which the camera takes [TalkBeat.fly] to get to.
+  void update(int beat, double age, double t, double dt) {}
+
+  /// Every frame while on, after the site's update (captions); not once
+  /// the questions have begun.
+  void caption(int beat, double age) {}
+
+  /// The questions have begun (see [TalkBeat.questions]): let what the
+  /// beat plays go, the booth's own demo taking over.
+  void questions() {}
+
+  /// Got ready (the capture waits for it).
+  Future<void>? get pending => null;
+}
+
+/// A framing from its eye and target (and fov), drifting a little.
+/// The shot that a beat's framing (Talk: pulled back [pull] times from
+/// what it looks at, then slid left by [shift] of the half width) turns
+/// into [s]: a camera that ends up exactly where [s] is.
+Shot unframed(Shot s, double shift, double pull) {
+  final f = s.target - s.eye;
+  final d = f.length;
+  final right = vm.Vector3(0, 1, 0).cross(f)..normalize();
+  final by = right * (shift * d * math.tan(s.fov * math.pi / 360) * 16 / 9);
+  final eye = s.eye + by, target = s.target + by;
+  return Shot(target + (eye - target) / pull, target, fov: s.fov, settle: s.settle, drift: s.drift);
+}
+
+Shot talkShot(double ex, double ey, double ez, double tx, double ty, double tz, double fov, {double drift = 0.35}) =>
+    Shot(vm.Vector3(ex, ey, ez), vm.Vector3(tx, ty, tz), fov: fov, drift: drift);

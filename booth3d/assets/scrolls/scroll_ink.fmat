@@ -1,0 +1,109 @@
+// A character written on the hanging scroll that's written in (lib/lab/
+// scroll_lab.dart): a small quad laid on the paper, bent with it by the same
+// sum as scroll.fmat's (its vertex stage copied here, and it must stay the
+// same), lifted a hair off the face; its glyph (white: in the ink; the seal
+// in its own colours). So a keystroke adds or moves a quad, and nothing is
+// painted again.
+
+material {
+  name: "ScrollInk",
+  shading_model: lit,
+  blending: alpha,
+  culling: none,
+  parameters: [
+    // The glyph: its coverage in alpha.
+    { type: sampler2d, name: glyph },
+    // The ink (linear).
+    { type: vec4, name: ink, default: [0.011, 0.010, 0.008, 1.0] },
+    // Where on the paper (m): x across at the glyph's left and right, down
+    // it at its top and bottom.
+    { type: vec4, name: cell, default: [0.0, 0.0, 0.0, 0.0] },
+    // The paper's shape, as scroll.fmat's.
+    { type: vec4, name: origin, default: [0.0, 2.0, 0.0, 0.0] },
+    { type: vec4, name: roll, default: [1.5, 1.5, 0.011, 0.0018] },
+    { type: vec4, name: sway, default: [0.0, 0.0, 0.0, 0.0] },
+    { type: vec4, name: wave, default: [0.0, 9.0, 3.0, 0.5] },
+    { type: vec4, name: hang, default: [0.03, 0.0, 0.0, 0.0] },
+  ],
+}
+
+vertex {
+  const float kPi = 3.14159265;
+
+  // Point (x across, sig down the paper) in the scroll's own frame: x along
+  // the line, y up, z out of the face; the line through the origin.
+  vec3 ScrollPoint(float x, float sig) {
+    float s = max(material_params.roll.x, 1e-4);
+    float len = material_params.roll.y;
+    float rod = material_params.roll.z;
+    float h = max(material_params.roll.w, 1e-5);
+    float t = material_params.wave.x;
+    float w = material_params.wave.w;
+    // Down the hanging part (the roller's at its foot): pinned at both
+    // rods, bulging between them; turning a little about the upright, more
+    // the further down.
+    float d = min(sig, s);
+    float pin = sin(kPi * d / s);
+    pin *= pin;
+    float tau = material_params.sway.z * d / s;
+    vec3 across = vec3(cos(tau), 0.0, sin(tau));
+    vec3 front = vec3(-sin(tau), 0.0, cos(tau));
+    float bulge = pin * (material_params.sway.y +
+        material_params.sway.w * sin(material_params.wave.y * d - material_params.wave.z * t + 2.6 * x / w));
+    vec3 p = vec3(0.0, -material_params.hang.x - d, 0.0) + across * x + front * bulge;
+    if (sig > s) {
+      // Wound round the roller, in front of the hanging part, the paper
+      // going down its back, under, up its front: a spiral whose radius
+      // falls a thickness a turn. a Phi^2 + rod Phi = what's left.
+      float a = h / (4.0 * kPi);
+      float phi0 = (-rod + sqrt(rod * rod + 4.0 * a * (len - s))) / (2.0 * a);
+      float outer = rod + h * phi0 / (2.0 * kPi);
+      // This point's turn: outer phi - a phi^2 = sig - s.
+      float phi = (outer - sqrt(max(outer * outer - 4.0 * a * (sig - s), 0.0))) / (2.0 * a);
+      float r = outer - h * phi / (2.0 * kPi);
+      p += front * (outer - r * cos(phi)) - vec3(0.0, r * sin(phi), 0.0);
+    }
+    // Swung on the line (the foot forward for +).
+    float cs = cos(material_params.sway.x), sn = sin(material_params.sway.x);
+    return vec3(p.x, p.y * cs + p.z * sn, -p.y * sn + p.z * cs);
+  }
+
+  vec3 ScrollWorld(float x, float sig) {
+    vec3 p = ScrollPoint(x, sig);
+    float cy = cos(material_params.origin.w), sy = sin(material_params.origin.w);
+    return material_params.origin.xyz + vec3(cy * p.x + sy * p.z, p.y, -sy * p.x + cy * p.z);
+  }
+
+  void Vertex(inout VertexInputs vertex) {
+    // (The unit quad into its cell: x across, sig down the paper.)
+    vec4 c = material_params.cell;
+    float x = mix(c.x, c.z, vertex.position.x), sig = mix(c.y, c.w, vertex.position.y);
+    vec3 p = ScrollWorld(x, sig);
+    const float e = 0.0015;
+    vec3 tx = ScrollWorld(x + e, sig) - p;
+    vec3 ts = ScrollWorld(x, sig + e) - p;
+    vec3 n = normalize(cross(ts, tx));
+    // Lifted a hair off the face (on the roll, into it: out of sight).
+    vertex.world_position = p + n * 0.0008;
+    vertex.world_normal = n;
+    vertex.world_tangent = vec4(normalize(tx), 1.0);
+  }
+}
+
+fragment {
+  vec3 InkLinear(vec3 c) {
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+  }
+
+  void Surface(inout MaterialInputs material) {
+    // (The face's side only: from behind, the paper hides it anyway.)
+    vec4 g = texture(glyph, GetUV0());
+    float a = gl_FrontFacing ? g.a : 0.0;
+    vec3 n = normalize(GetWorldNormal());
+    material.normal = gl_FrontFacing ? n : -n;
+    material.base_color = vec4(InkLinear(g.rgb) * material_params.ink.rgb, a * material_params.ink.a);
+    material.roughness = 0.55;
+    material.specular = 0.4;
+    PrepareMaterial(material);
+  }
+}

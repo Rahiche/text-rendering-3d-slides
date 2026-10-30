@@ -1,0 +1,121 @@
+name: booth3d
+description: "名前の街 · Name City: the conference booth's name builder in 3D (flutter_scene)."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.4
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.8
+  flutter_scene: ^0.23.0
+  vector_math: ^2.4.3
+  text_slides:
+    path: ..
+  characters: ^1.4.1
+  hooks: ^2.2.0
+  flutter_scene_rapier: ^0.5.1
+  fountain_pen: ^0.2.1
+  text_on_path: ^0.1.0
+  # Effects along handwritten strokes, for Package Town's rooftop (its
+  # fighters' lines: lib/world/v_package.dart). The presenter's own package.
+  stroke_fx: ^0.1.0
+  # GPU text from glyph outlines (the Slug algorithm): its encoder, for the
+  # talk's Slug turn (lib/world/slug_word.dart).
+  slug:
+    path: ../packages/slug
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # The "flutter_lints" package below contains a set of recommended lints to
+  # encourage good coding practices. The lint set provided by the package is
+  # activated in the `analysis_options.yaml` file located at the root of your
+  # package. See that file for information about deactivating specific lint
+  # rules and activating additional ones.
+  flutter_lints: ^6.0.0
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+  uses-material-design: true
+  assets:
+    - flutter_scene_generated/
+    # Made in Blender: tool/blender/*.py.
+    - assets/models/
+    # From Poly Haven (CC0): assets/textures/CREDITS.md, assets/sky/CREDITS.md.
+    - assets/textures/
+    - assets/sky/
+    # MakeHuman (CC0) people and CC0 motion clips: assets/people/CREDITS.md.
+    - assets/people/
+    # The presentation's narration (tool/narration): its timing; its clips,
+    # the presenter's voice, only where they've been made (not in git).
+    - assets/narration/
+    - assets/narration/deep/
+    - assets/narration/quick/
+  # The booth UI (board, input, tally) from the slides package draws with
+  # these families.
+  fonts:
+    - family: SpaceGrotesk
+      fonts:
+        - asset: assets/fonts/SpaceGrotesk.ttf
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+    - family: NotoKufiArabic
+      fonts:
+        - asset: assets/fonts/NotoKufiArabic.ttf
+    # The locale office (v_locale.dart): the same code points in their
+    # Japanese and Chinese forms (subsets of Noto Sans JP and SC).
+    - family: CaseJP
+      fonts:
+        - asset: assets/fonts/NotoSansJP-case.ttf
+    - family: CaseSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-case.ttf
+    # The talk's phones (v_phones.dart): Android's own face, beside the
+    # iPhone's system font (Apache License 2.0: Roboto_LICENSE.txt).
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Regular.ttf
+    # Package Town's handwriting screen (package_pen.dart): the font
+    # fountain_pen's bundled hand is traced from (Apache License 2.0, from
+    # Flutter's engine test fonts: HomemadeApple_LICENSE.txt).
+    - family: HomemadeApple
+      fonts:
+        - asset: assets/fonts/HomemadeApple.ttf
+    # Package Town's text on a path screen (package_path.dart): English in
+    # cursive, its letters joined (text_on_path's own example font; SIL Open
+    # Font License 1.1: DancingScript_LICENSE.txt).
+    - family: DancingScript
+      fonts:
+        - asset: assets/fonts/DancingScript.ttf

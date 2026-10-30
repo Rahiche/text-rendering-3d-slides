@@ -1,0 +1,59 @@
+// The end of a hanging scroll's roll (lib/lab/scroll_lab.dart): the spiral
+// of its paper, seen edge on. A disc across the roll at each end of the
+// paper; here, each point of it is paper or the gap between two turns: the
+// same spiral scroll.fmat winds the paper on (from where the hanging part
+// leaves the roll, at its back, down, under, up the front; the radius a
+// thickness less a turn), so as the paper unwinds the spiral turns with it.
+// Outside the outer turn, nothing; inside the innermost, the roller.
+
+material {
+  name: "ScrollRollEnd",
+  shading_model: lit,
+  culling: none,
+  parameters: [
+    // The roll's middle (world).
+    { type: vec4, name: centre, default: [0.0, 0.0, 0.0, 0.0] },
+    // From the middle to where the paper leaves the roll, and down (world,
+    // unit): the spiral's angle is measured from the first towards the
+    // second.
+    { type: vec4, name: back, default: [0.0, 0.0, -1.0, 0.0] },
+    { type: vec4, name: down, default: [0.0, -1.0, 0.0, 0.0] },
+    // x: the roll's outer radius; y: the roller's; z: the paper's thickness
+    // (a turn's worth).
+    { type: vec4, name: roll, default: [0.03, 0.011, 0.0018, 0.0] },
+    // The paper's edge, the gaps, the roller (linear).
+    { type: vec4, name: edge_color, default: [0.66, 0.63, 0.55, 1.0] },
+    { type: vec4, name: gap_color, default: [0.018, 0.016, 0.014, 1.0] },
+    { type: vec4, name: wood_color, default: [0.10, 0.05, 0.025, 1.0] },
+  ],
+}
+
+fragment {
+  const float kTurn = 6.2831853;
+
+  void Surface(inout MaterialInputs material) {
+    vec3 d = GetWorldPosition() - material_params.centre.xyz;
+    vec2 p = vec2(dot(d, material_params.back.xyz), dot(d, material_params.down.xyz));
+    float r = length(p);
+    float a = atan(p.y, p.x);
+    if (a < 0.0) a += kTurn;
+    float outer = material_params.roll.x, rod = material_params.roll.y, h = material_params.roll.z;
+    // Turns of paper in from the outside at this angle: the outermost turn
+    // at r = outer - h a / 2pi, each next one a thickness in.
+    float f = (outer - r) / h - a / kTurn;
+    if (f < 0.0) discard;
+    vec3 c;
+    if (r < rod) {
+      c = material_params.wood_color.rgb;
+    } else {
+      // The paper's own thickness, then the gap to the next turn (the
+      // edges anti-aliased, a little darker the deeper in).
+      float k = fract(f), px = max(fwidth(f), 1e-4);
+      float paper = smoothstep(0.0, px, k) * (1.0 - smoothstep(0.55 - px, 0.55 + px, k));
+      c = mix(material_params.gap_color.rgb, material_params.edge_color.rgb * mix(0.6, 1.0, smoothstep(rod, outer, r)), paper);
+    }
+    material.base_color = vec4(c, 1.0);
+    material.roughness = 0.85;
+    PrepareMaterial(material);
+  }
+}
