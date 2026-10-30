@@ -1,0 +1,22 @@
+{
+  "model_id": "music_v2_5",
+  "composition_plan": {
+    "chunks": [
+      {"text": "[Intro] {instrumental, quiet, mysterious opening}", "duration_ms": 5000,
+       "positive_styles": ["epic cinematic trailer", "Japanese koto plucks", "soft taiko pulse", "airy pads", "anticipation", "instrumental"],
+       "negative_styles": ["vocals", "lyrics", "speech"]},
+      {"text": "[Build] {instrumental, rising tension}", "duration_ms": 6000,
+       "positive_styles": ["epic cinematic trailer", "rising string ostinato", "ticking percussion", "pulsing synth arpeggio", "building tension", "instrumental"],
+       "negative_styles": ["vocals", "lyrics", "speech"]},
+      {"text": "[Drive] {instrumental, full power}", "duration_ms": 10000,
+       "positive_styles": ["epic orchestral trailer", "big taiko and drums", "brass stabs", "driving rhythm", "energetic", "hybrid orchestral electronic", "instrumental"],
+       "negative_styles": ["vocals", "lyrics", "speech"]},
+      {"text": "[Peak] {instrumental, triumphant}", "duration_ms": 7500,
+       "positive_styles": ["soaring strings", "triumphant", "wordless choir pad", "shakuhachi melody", "heroic", "instrumental"],
+       "negative_styles": ["vocals", "lyrics", "speech"]},
+      {"text": "[Outro] {instrumental, final hit and ring out}", "duration_ms": 4000,
+       "positive_styles": ["final orchestral hit", "taiko boom", "long ring out", "clean ending", "instrumental"],
+       "negative_styles": ["vocals", "lyrics", "speech", "fade in"]}
+    ]
+  }
+}

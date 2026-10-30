@@ -1,0 +1,110 @@
+{
+ "music": "music/teaser_music.mp3",
+ "xfade": 0.4,
+ "segments": [
+  {
+   "clip": "scrolls",
+   "start": 1.8,
+   "until": 5.0,
+   "card": "scrolls",
+   "first": true,
+   "crop": [
+    760,
+    0,
+    1080,
+    1080
+   ]
+  },
+  {
+   "clip": "scrolls",
+   "start": 10.4,
+   "until": 11.0,
+   "card": "scrolls",
+   "crop": [
+    710,
+    0,
+    1080,
+    1080
+   ]
+  },
+  {
+   "clip": "pen",
+   "start": 8.2,
+   "until": 15.0,
+   "card": "pen",
+   "first": true,
+   "speed": 1.15,
+   "crop": [
+    790,
+    180,
+    1080,
+    810
+   ]
+  },
+  {
+   "clip": "path",
+   "start": 17.2,
+   "until": 19.0,
+   "card": "path",
+   "first": true,
+   "crop": [
+    780,
+    150,
+    1100,
+    825
+   ]
+  },
+  {
+   "clip": "fx1",
+   "start": 3.7,
+   "until": 21.4,
+   "card": "fx",
+   "first": true,
+   "crop": [
+    40,
+    0,
+    1840,
+    1080
+   ]
+  },
+  {
+   "clip": "fx1",
+   "start": 9.0,
+   "until": 23.8,
+   "card": "fx",
+   "crop": [
+    40,
+    0,
+    1840,
+    1080
+   ]
+  },
+  {
+   "clip": "fx1",
+   "start": 17.0,
+   "until": 26.2,
+   "card": "fx",
+   "crop": [
+    40,
+    0,
+    1840,
+    1080
+   ]
+  },
+  {
+   "clip": "fx2",
+   "start": 18.3,
+   "until": 28.5,
+   "card": "fx",
+   "crop": [
+    40,
+    0,
+    1840,
+    1080
+   ]
+  }
+ ],
+ "end": {
+  "until": 32.5
+ }
+}
