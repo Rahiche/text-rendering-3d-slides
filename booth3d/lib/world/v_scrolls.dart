@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show Color;
 
-import 'package:flutter/services.dart' show TextEditingValue, TextSelection;
+import 'package:flutter/services.dart' show TextEditingValue, TextRange, TextSelection;
 import 'package:flutter_scene/scene.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -56,6 +56,40 @@ class ScrollLine extends Vignette {
   /// middle one a second into the close-up (as the presenter would).
   static const _typed = String.fromEnvironment('BOOTH3D_SCROLLS_TYPE');
 
+  /// Capture aid, for a video: --dart-define=BOOTH3D_SCROLLS_DEMO=1 acts the
+  /// close-up out as the presenter would, from [_demoFrom] s into it: the
+  /// middle one's writing selected down its column, then typed over through
+  /// an input method, each word composed (underlined) and then converted,
+  /// the caret blinking.
+  static const _demo = String.fromEnvironment('BOOTH3D_SCROLLS_DEMO') != '';
+  static const _demoFrom = 1.8;
+  static final _demoSteps = () {
+    TextEditingValue v(String text, [int? composeFrom]) => TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+      composing: composeFrom == null ? TextRange.empty : TextRange(start: composeFrom, end: text.length),
+    );
+    const base = '一期一会';
+    return <(double, TextEditingValue)>[
+      for (var k = 1; k <= base.length; k++) ((k - 1) * 0.25, TextEditingValue(text: base, selection: TextSelection(baseOffset: 0, extentOffset: k))),
+      (1.6, v('ふ', 0)),
+      (1.78, v('ふら', 0)),
+      (1.96, v('ふらっ', 0)),
+      (2.14, v('ふらった', 0)),
+      (2.32, v('ふらったー', 0)),
+      (2.9, v('フラッター', 0)),
+      (3.3, v('フラッター')),
+      (3.6, v('フラッター、')),
+      (3.9, v('フラッター、よ', 6)),
+      (4.08, v('フラッター、よう', 6)),
+      (4.26, v('フラッター、ようこ', 6)),
+      (4.44, v('フラッター、ようこそ', 6)),
+      (4.9, v('フラッター、ようこそ')),
+      (5.2, v('フラッター、ようこそ。')),
+    ];
+  }();
+  int _demoStep = -1;
+
   /// The line between its posts (x, along it: both out of the first beat's
   /// picture), its height there, how far it sags in the middle; the scrolls
   /// closer than the lab's (all five beside the talk's card, near enough to
@@ -100,6 +134,16 @@ class ScrollLine extends Vignette {
     if (visited) _shown = true;
     if (_typed.isNotEmpty && visited && u >= close + 1 && scrolls.editableText != _typed) {
       scrolls.edited(TextEditingValue(text: _typed, selection: const TextSelection.collapsed(offset: _typed.length)));
+    }
+    if (_demo && visited) {
+      final s = u - close - _demoFrom;
+      var step = -1;
+      while (step + 1 < _demoSteps.length && _demoSteps[step + 1].$1 <= s) {
+        step++;
+      }
+      if (step != _demoStep && step >= 0) scrolls.edited(_demoSteps[step].$2);
+      _demoStep = step;
+      scrolls.demo = step >= 0;
     }
     scrolls.update(t, dt, unrolled: visited ? u : (_shown ? unrolled : 0));
   }

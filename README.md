@@ -1,8 +1,8 @@
-![Inside Flutter's Text Pipeline, told in Name City](doc/cover.jpg)
+[![Watch the 30-second teaser: Inside Flutter's Text Pipeline, told in Name City](doc/teaser_poster.jpg)](doc/teaser.mp4)
 
 The talk *Inside Flutter's Text Pipeline* as a 3D city built with Flutter. Every stop is a place.
 
-![Hanging scrolls of vertical text unrolling on a rooftop](doc/scrolls.gif)
+![Hanging scrolls unrolled by a shader, then typed into through an input method](doc/scrolls.webp)
 
 | | |
 |:---:|:---:|

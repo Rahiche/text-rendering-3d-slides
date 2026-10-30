@@ -101,7 +101,7 @@ class HangingScrolls {
     final blink = (_clock - _blinkFrom) % 1.06 < 0.53 ? 1.0 : 0.0;
     for (final s in _scrolls) {
       s.update(t, dt, calm ? 0.0 : wind(t, s.x), unrolled: unrolled ?? t);
-      final mine = s.index == _sel, writing = mine && s.index == editable && editorFocused;
+      final mine = s.index == _sel, writing = mine && s.index == editable && (editorFocused || demo);
       s.show(mine ? _anchor : null, _focusAt, caret: writing ? blink : 0, composing: writing ? _composing : null);
     }
   }
@@ -213,6 +213,10 @@ class HangingScrolls {
   /// being composed are shown then, and whoever else listens to the keys
   /// leaves them be.
   bool editorFocused = false;
+
+  /// The middle one written in by a script (a capture's demo), not the
+  /// keys: its caret and composing shown as if its editor had them.
+  bool demo = false;
 
   /// What the input method's composing (caret positions), if anything.
   (int, int)? _composing;
