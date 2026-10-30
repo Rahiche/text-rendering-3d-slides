@@ -3,7 +3,6 @@
 # this repo's gh-pages branch (https://rahiche.github.io/text-rendering-3d-slides/).
 # The page opens straight into the talk (NAME_CITY_TALK=1).
 #   bash tool/deploy_pages.sh
-# DEPLOY_NOTE adds a paragraph to the deploy commit's message.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -32,6 +31,6 @@ rm -rf .git
 git init -q -b gh-pages
 git config http.postBuffer 524288000
 git add -A
-git commit -q -m "Deploy $SHA" ${DEPLOY_NOTE:+-m "$DEPLOY_NOTE"}
+git commit -q -m "Deploy $SHA"
 git push -q --force "$REMOTE" gh-pages
 echo "pushed $SHA to gh-pages"

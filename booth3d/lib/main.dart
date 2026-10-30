@@ -135,12 +135,14 @@ class _NameCityAppState extends State<NameCityApp> with SingleTickerProviderStat
   Duration _last = Duration.zero;
   double _speed = Tuning.speed;
   late final _perf = PerfLog.enabled ? PerfLog(world, model, ratio: () => _sceneRatio) : null;
-  final _quality = RenderQuality(log: PerfLog.enabled ? PerfLog.line : null);
+  // (The web renders at 0.8 of the canvas, and lower when frames run late:
+  // see Tuning.)
+  final _quality = RenderQuality(start: kIsWeb ? 0.8 : 1.5, floor: kIsWeb ? 0.6 : 0.8, log: PerfLog.enabled ? PerfLog.line : null);
   final _watch = Stopwatch();
   bool get _capturing => _times.isNotEmpty;
 
   /// The scene's render ratio now (device pixels per canvas pixel).
-  double get _sceneRatio => _capturing ? _scaleBy : Tuning.ratio ?? (_talkOn ? _quality.atLeast(_talkRatio) : _quality.ratio);
+  double get _sceneRatio => _capturing ? _scaleBy : Tuning.ratio ?? (_talkOn && !kIsWeb ? _quality.atLeast(_talkRatio) : _quality.ratio);
 
   late final presentation = Presentation(world.talk, silent: _capturing || _silent, voice: _voice);
 

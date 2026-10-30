@@ -184,7 +184,7 @@ class Sky3D {
       ..intensity = lerp(0.9, 1.3, k)
       ..radius = lerp(0.45, 0.6, k);
     scene.screenSpaceReflections
-      ..enabled = k > 0.5 && g < 0.5
+      ..enabled = Tuning.ssr && k > 0.5 && g < 0.5
       ..intensity = 0.5
       ..maxSteps = 48;
     if (style.isNotEmpty && k > 0) _tried(k, g);

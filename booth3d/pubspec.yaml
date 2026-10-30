@@ -51,6 +51,13 @@ dependencies:
   slug:
     path: ../packages/slug
 
+# flutter_scene with its web backend's vertex bindings fixed (one per slot,
+# not one per draw piling up): ../packages/flutter_scene/PATCHED.md. Drop it
+# once a release has the fix.
+dependency_overrides:
+  flutter_scene:
+    path: ../packages/flutter_scene
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

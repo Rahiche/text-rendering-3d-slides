@@ -150,10 +150,9 @@ packages:
   flutter_scene:
     dependency: "direct main"
     description:
-      name: flutter_scene
-      sha256: "1cc32b5ed0d05296c1f7958e63168a750c05c2373d6769ad9b9eaa973b2f97fe"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../packages/flutter_scene"
+      relative: true
+    source: path
     version: "0.23.0"
   flutter_scene_rapier:
     dependency: "direct main"
@@ -429,4 +428,4 @@ packages:
     version: "2.2.4"
 sdks:
   dart: ">=3.13.4 <4.0.0"
-  flutter: ">=3.47.0"
+  flutter: ">=3.32.0"
