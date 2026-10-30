@@ -23,6 +23,8 @@ cp -R booth3d/build/web "$OUT"
 find "$OUT" -name '*.mp3' -delete
 n=$(find "$OUT" -path '*flutter_scene_generated*' -type f | wc -l | tr -d ' ')
 [ "$n" -gt 5 ] || { echo "scene assets missing ($n)"; exit 1; }
+# (The README's teaser plays from here: Pages serves it as video.)
+cp doc/teaser.mp4 "$OUT/teaser.mp4"
 find "$OUT" -name .gitignore -delete
 touch "$OUT/.nojekyll"
 

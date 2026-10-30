@@ -1,4 +1,4 @@
-[![Watch the 30-second teaser: Inside Flutter's Text Pipeline, told in Name City](doc/teaser_poster.jpg)](doc/teaser.mp4)
+[![Watch the 30-second teaser: Inside Flutter's Text Pipeline, told in Name City](doc/teaser_poster.jpg)](https://rahiche.github.io/text-rendering-3d-slides/teaser.mp4)
 
 The talk *Inside Flutter's Text Pipeline* as a 3D city built with Flutter. Every stop is a place.
 
