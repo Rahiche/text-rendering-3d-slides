@@ -1,0 +1,29 @@
+{
+  "schema": 2,
+  "package": "booth3d",
+  "bundleName": "materials",
+  "shaderBundleFileName": "material.materials.8cac5545.shaderbundle",
+  "sidecarFileName": "material.materials.8cac5545.fmat.json",
+  "materials": {
+    "MeadowGrass": {
+      "entryName": "MeadowGrass",
+      "source": "assets/lab/grass.fmat"
+    },
+    "SlugText": {
+      "entryName": "SlugText",
+      "source": "assets/materials/slug.fmat"
+    },
+    "ScrollRollEnd": {
+      "entryName": "ScrollRollEnd",
+      "source": "assets/scrolls/roll_end.fmat"
+    },
+    "HangingScroll": {
+      "entryName": "HangingScroll",
+      "source": "assets/scrolls/scroll.fmat"
+    },
+    "ScrollInk": {
+      "entryName": "ScrollInk",
+      "source": "assets/scrolls/scroll_ink.fmat"
+    }
+  }
+}

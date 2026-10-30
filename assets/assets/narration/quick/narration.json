@@ -1,0 +1,608 @@
+{
+ "variant": "quick",
+ "total": 1260.0,
+ "clips": [
+  {
+   "beat": "title slide",
+   "file": "00.mp3",
+   "start": 0.6,
+   "seconds": 15.229,
+   "dwell": 17.373
+  },
+  {
+   "beat": "title why",
+   "file": "01.mp3",
+   "start": 0.6,
+   "seconds": 13.14,
+   "dwell": 15.284
+  },
+  {
+   "beat": "title physical",
+   "file": "02.mp3",
+   "start": 0.6,
+   "seconds": 9.143,
+   "dwell": 12.175
+  },
+  {
+   "beat": "title rules",
+   "file": "03.mp3",
+   "start": 0.6,
+   "seconds": 8.49,
+   "dwell": 12.065
+  },
+  {
+   "beat": "title computers",
+   "file": "04.mp3",
+   "start": 0.6,
+   "seconds": 8.359,
+   "dwell": 10.503
+  },
+  {
+   "beat": "title problem",
+   "file": "05.mp3",
+   "start": 0.6,
+   "seconds": 8.072,
+   "dwell": 10.357
+  },
+  {
+   "beat": "title city",
+   "file": "06.mp3",
+   "start": 0.6,
+   "seconds": 18.808,
+   "dwell": 20.952
+  },
+  {
+   "beat": "01 pipeline",
+   "file": "07.mp3",
+   "start": 0.6,
+   "seconds": 31.53,
+   "dwell": 33.674
+  },
+  {
+   "beat": "01 string0",
+   "file": "08.mp3",
+   "start": 0.6,
+   "seconds": 14.994,
+   "dwell": 17.138
+  },
+  {
+   "beat": "01 string1",
+   "file": "09.mp3",
+   "start": 0.6,
+   "seconds": 15.36,
+   "dwell": 17.504
+  },
+  {
+   "beat": "01 string2",
+   "file": "10.mp3",
+   "start": 0.6,
+   "seconds": 13.375,
+   "dwell": 15.519
+  },
+  {
+   "beat": "01 string3",
+   "file": "11.mp3",
+   "start": 0.6,
+   "seconds": 10.292,
+   "dwell": 12.436
+  },
+  {
+   "beat": "01 itemize",
+   "file": "12.mp3",
+   "start": 0.6,
+   "seconds": 11.598,
+   "dwell": 13.742
+  },
+  {
+   "beat": "01 itemize2",
+   "file": "13.mp3",
+   "start": 0.6,
+   "seconds": 17.162,
+   "dwell": 19.307
+  },
+  {
+   "beat": "01 itemize3",
+   "file": "14.mp3",
+   "start": 0.6,
+   "seconds": 13.558,
+   "dwell": 16.83
+  },
+  {
+   "beat": "01 fallback",
+   "file": "15.mp3",
+   "start": 0.6,
+   "seconds": 18.756,
+   "dwell": 20.9
+  },
+  {
+   "beat": "01 fallback A",
+   "file": "16.mp3",
+   "start": 0.6,
+   "seconds": 4.493,
+   "dwell": 6.637
+  },
+  {
+   "beat": "01 fallback ba",
+   "file": "17.mp3",
+   "start": 0.6,
+   "seconds": 3.004,
+   "dwell": 5.148
+  },
+  {
+   "beat": "01 fallback zi",
+   "file": "18.mp3",
+   "start": 0.6,
+   "seconds": 2.325,
+   "dwell": 4.469
+  },
+  {
+   "beat": "01 fallback emoji",
+   "file": "19.mp3",
+   "start": 0.6,
+   "seconds": 1.567,
+   "dwell": 3.711
+  },
+  {
+   "beat": "01 fallback tofu",
+   "file": "20.mp3",
+   "start": 0.6,
+   "seconds": 13.218,
+   "dwell": 15.362
+  },
+  {
+   "beat": "01 shaping",
+   "file": "21.mp3",
+   "start": 0.6,
+   "seconds": 34.168,
+   "dwell": 36.312
+  },
+  {
+   "beat": "01 lines1",
+   "file": "22.mp3",
+   "start": 0.6,
+   "seconds": 27.951,
+   "dwell": 30.095
+  },
+  {
+   "beat": "01 lines2",
+   "file": "23.mp3",
+   "start": 0.6,
+   "seconds": 8.359,
+   "dwell": 10.503
+  },
+  {
+   "beat": "01 bidi",
+   "file": "24.mp3",
+   "start": 0.6,
+   "seconds": 31.347,
+   "dwell": 33.491
+  },
+  {
+   "beat": "01 raster",
+   "file": "25.mp3",
+   "start": 0.6,
+   "seconds": 16.248,
+   "dwell": 18.392
+  },
+  {
+   "beat": "01 raster aliased",
+   "file": "26.mp3",
+   "start": 0.6,
+   "seconds": 12.513,
+   "dwell": 14.657
+  },
+  {
+   "beat": "01 raster subpixel",
+   "file": "27.mp3",
+   "start": 0.6,
+   "seconds": 7.654,
+   "dwell": 9.798
+  },
+  {
+   "beat": "01 raster grayscale",
+   "file": "28.mp3",
+   "start": 0.6,
+   "seconds": 3.396,
+   "dwell": 5.953
+  },
+  {
+   "beat": "02 intro",
+   "file": "29.mp3",
+   "start": 0.6,
+   "seconds": 21.081,
+   "dwell": 23.225
+  },
+  {
+   "beat": "02 unicode ascii",
+   "file": "30.mp3",
+   "start": 0.6,
+   "seconds": 9.744,
+   "dwell": 11.888
+  },
+  {
+   "beat": "02 unicode 1",
+   "file": "31.mp3",
+   "start": 0.6,
+   "seconds": 4.336,
+   "dwell": 6.48
+  },
+  {
+   "beat": "02 unicode 6",
+   "file": "32.mp3",
+   "start": 0.6,
+   "seconds": 4.049,
+   "dwell": 6.193
+  },
+  {
+   "beat": "02 unicode 18",
+   "file": "33.mp3",
+   "start": 0.6,
+   "seconds": 14.576,
+   "dwell": 16.72
+  },
+  {
+   "beat": "02 alley",
+   "file": "34.mp3",
+   "start": 0.6,
+   "seconds": 19.67,
+   "dwell": 21.814
+  },
+  {
+   "beat": "02 stacking",
+   "file": "35.mp3",
+   "start": 0.6,
+   "seconds": 14.942,
+   "dwell": 17.086
+  },
+  {
+   "beat": "02 blocks",
+   "file": "36.mp3",
+   "start": 0.6,
+   "seconds": 14.472,
+   "dwell": 16.616
+  },
+  {
+   "beat": "02 vertical",
+   "file": "37.mp3",
+   "start": 0.6,
+   "seconds": 9.718,
+   "dwell": 11.862
+  },
+  {
+   "beat": "02 locale",
+   "file": "38.mp3",
+   "start": 0.6,
+   "seconds": 25.025,
+   "dwell": 27.169
+  },
+  {
+   "beat": "02 mixing",
+   "file": "39.mp3",
+   "start": 0.6,
+   "seconds": 20.663,
+   "dwell": 22.807
+  },
+  {
+   "beat": "03 map",
+   "file": "40.mp3",
+   "start": 0.6,
+   "seconds": 17.633,
+   "dwell": 21.454
+  },
+  {
+   "beat": "03 widget",
+   "file": "41.mp3",
+   "start": 0.6,
+   "seconds": 17.633,
+   "dwell": 19.777
+  },
+  {
+   "beat": "03 engine",
+   "file": "42.mp3",
+   "start": 0.6,
+   "seconds": 6.531,
+   "dwell": 8.675
+  },
+  {
+   "beat": "03 decode",
+   "file": "43.mp3",
+   "start": 0.6,
+   "seconds": 9.456,
+   "dwell": 11.6
+  },
+  {
+   "beat": "03 fonts",
+   "file": "44.mp3",
+   "start": 0.6,
+   "seconds": 12.774,
+   "dwell": 18.695
+  },
+  {
+   "beat": "03 shape",
+   "file": "45.mp3",
+   "start": 0.6,
+   "seconds": 10.893,
+   "dwell": 13.037
+  },
+  {
+   "beat": "03 line",
+   "file": "46.mp3",
+   "start": 0.6,
+   "seconds": 10.292,
+   "dwell": 12.436
+  },
+  {
+   "beat": "03 paint",
+   "file": "47.mp3",
+   "start": 0.6,
+   "seconds": 8.594,
+   "dwell": 10.738
+  },
+  {
+   "beat": "03 outline",
+   "file": "48.mp3",
+   "start": 0.6,
+   "seconds": 10.684,
+   "dwell": 12.828
+  },
+  {
+   "beat": "03 raster",
+   "file": "49.mp3",
+   "start": 0.6,
+   "seconds": 10.449,
+   "dwell": 12.593
+  },
+  {
+   "beat": "03 draw",
+   "file": "50.mp3",
+   "start": 0.6,
+   "seconds": 14.942,
+   "dwell": 17.086
+  },
+  {
+   "beat": "04 engines",
+   "file": "51.mp3",
+   "start": 0.6,
+   "seconds": 20.14,
+   "dwell": 26.501
+  },
+  {
+   "beat": "04 chrome",
+   "file": "52.mp3",
+   "start": 0.6,
+   "seconds": 16.744,
+   "dwell": 21.25
+  },
+  {
+   "beat": "04 figma",
+   "file": "53.mp3",
+   "start": 0.6,
+   "seconds": 14.472,
+   "dwell": 19.416
+  },
+  {
+   "beat": "04 macos",
+   "file": "54.mp3",
+   "start": 0.6,
+   "seconds": 10.893,
+   "dwell": 18.868
+  },
+  {
+   "beat": "04 android",
+   "file": "55.mp3",
+   "start": 0.6,
+   "seconds": 14.524,
+   "dwell": 19.244
+  },
+  {
+   "beat": "05 intro",
+   "file": "56.mp3",
+   "start": 0.6,
+   "seconds": 13.375,
+   "dwell": 15.519
+  },
+  {
+   "beat": "05 missing1",
+   "file": "57.mp3",
+   "start": 0.6,
+   "seconds": 9.456,
+   "dwell": 11.861
+  },
+  {
+   "beat": "05 missing1b",
+   "file": "58.mp3",
+   "start": 0.6,
+   "seconds": 5.799,
+   "dwell": 8.461
+  },
+  {
+   "beat": "05 missing2",
+   "file": "59.mp3",
+   "start": 0.6,
+   "seconds": 10.632,
+   "dwell": 13.366
+  },
+  {
+   "beat": "05 missing3",
+   "file": "60.mp3",
+   "start": 0.6,
+   "seconds": 10.344,
+   "dwell": 18.194
+  },
+  {
+   "beat": "05 web",
+   "file": "61.mp3",
+   "start": 0.6,
+   "seconds": 16.196,
+   "dwell": 21.877
+  },
+  {
+   "beat": "05 only1",
+   "file": "62.mp3",
+   "start": 0.6,
+   "seconds": 13.322,
+   "dwell": 17.488
+  },
+  {
+   "beat": "05 only2",
+   "file": "63.mp3",
+   "start": 0.6,
+   "seconds": 12.487,
+   "dwell": 14.981
+  },
+  {
+   "beat": "05 only3",
+   "file": "64.mp3",
+   "start": 0.6,
+   "seconds": 10.214,
+   "dwell": 12.358
+  },
+  {
+   "beat": "06 intro",
+   "file": "65.mp3",
+   "start": 0.6,
+   "seconds": 10.475,
+   "dwell": 12.619
+  },
+  {
+   "beat": "06 phrases",
+   "file": "66.mp3",
+   "start": 0.6,
+   "seconds": 8.856,
+   "dwell": 11.0
+  },
+  {
+   "beat": "06 phrases fix",
+   "file": "67.mp3",
+   "start": 0.6,
+   "seconds": 9.979,
+   "dwell": 12.363
+  },
+  {
+   "beat": "06 punctuation",
+   "file": "68.mp3",
+   "start": 0.6,
+   "seconds": 10.109,
+   "dwell": 12.253
+  },
+  {
+   "beat": "06 punctuation fix",
+   "file": "69.mp3",
+   "start": 0.6,
+   "seconds": 6.452,
+   "dwell": 9.244
+  },
+  {
+   "beat": "06 slug",
+   "file": "70.mp3",
+   "start": 0.6,
+   "seconds": 9.273,
+   "dwell": 11.418
+  },
+  {
+   "beat": "06 slug fix",
+   "file": "71.mp3",
+   "start": 0.6,
+   "seconds": 11.05,
+   "dwell": 14.746
+  },
+  {
+   "beat": "06 handwriting",
+   "file": "72.mp3",
+   "start": 0.6,
+   "seconds": 12.304,
+   "dwell": 18.021
+  },
+  {
+   "beat": "06 handwriting fix",
+   "file": "73.mp3",
+   "start": 0.6,
+   "seconds": 15.229,
+   "dwell": 17.373
+  },
+  {
+   "beat": "06 path",
+   "file": "74.mp3",
+   "start": 0.6,
+   "seconds": 6.713,
+   "dwell": 9.385
+  },
+  {
+   "beat": "06 path cursive",
+   "file": "75.mp3",
+   "start": 0.6,
+   "seconds": 3.109,
+   "dwell": 6.203
+  },
+  {
+   "beat": "06 path arabic",
+   "file": "76.mp3",
+   "start": 0.6,
+   "seconds": 4.676,
+   "dwell": 6.82
+  },
+  {
+   "beat": "06 path fix",
+   "file": "77.mp3",
+   "start": 0.6,
+   "seconds": 7.967,
+   "dwell": 10.111
+  },
+  {
+   "beat": "06 fx frost",
+   "file": "78.mp3",
+   "start": 0.6,
+   "seconds": 7.523,
+   "dwell": 9.714
+  },
+  {
+   "beat": "06 fx ember",
+   "file": "79.mp3",
+   "start": 0.6,
+   "seconds": 1.933,
+   "dwell": 4.37
+  },
+  {
+   "beat": "06 fx neon",
+   "file": "80.mp3",
+   "start": 0.6,
+   "seconds": 2.325,
+   "dwell": 4.469
+  },
+  {
+   "beat": "06 fx ivy",
+   "file": "81.mp3",
+   "start": 0.6,
+   "seconds": 2.273,
+   "dwell": 4.417
+  },
+  {
+   "beat": "06 fx jelly",
+   "file": "82.mp3",
+   "start": 0.6,
+   "seconds": 1.489,
+   "dwell": 3.978
+  },
+  {
+   "beat": "06 fx sakura",
+   "file": "83.mp3",
+   "start": 0.6,
+   "seconds": 2.743,
+   "dwell": 4.887
+  },
+  {
+   "beat": "end tradeoff",
+   "file": "84.mp3",
+   "start": 0.6,
+   "seconds": 22.413,
+   "dwell": 24.557
+  },
+  {
+   "beat": "end thanks",
+   "file": "85.mp3",
+   "start": 0.6,
+   "seconds": 10.998,
+   "dwell": 11.598
+  }
+ ]
+}
